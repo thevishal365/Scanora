@@ -1,0 +1,23 @@
+---
+description: Layout, spacing, and responsive density for Scanora UI.
+globs: frontend/src/**/*.{jsx,css}
+alwaysApply: false
+---
+
+# Layout and density
+
+- Use a single centered column with a readable max width (about 40rem).
+- Space sections more than items inside a section.
+- Stick to Tailwind spacing (4, 6, 8, 12, 16). Do not invent one-off pixel gaps.
+- Primary content first: brand, instruction, upload, selected files, action, disclaimer.
+- On mobile: one column, no horizontal scroll, tap targets at least 44px.
+- Keep previews, filenames, and remove actions on one scannable row; wrap on small screens if needed.
+- Do not add a sidebar, navbar, or dashboard grid.
+
+```jsx
+// ❌ Nested cards and split layout
+<aside /> <div className="grid grid-cols-3">...</div>
+
+// ✅ One column, one job
+<main className="mx-auto max-w-xl px-4 py-10">...</main>
+```

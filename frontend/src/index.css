@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Noto+Sans:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Noto Sans', system-ui, sans-serif;
+  --font-heading: 'Figtree', system-ui, sans-serif;
+  --color-scanora-primary: #0891b2;
+  --color-scanora-text: #164e63;
+  --color-scanora-muted: #3d6b7a;
+  --color-scanora-bg: #ecfeff;
+  --color-scanora-card: #ffffff;
+  --color-scanora-border: #a5f3fc;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+html {
+  background-color: var(--color-scanora-bg);
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-scanora-bg);
+  color: var(--color-scanora-text);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.analyzing-dots {
+  display: inline-block;
+  min-width: 1.15em;
+  text-align: left;
+}
+
+.analyzing-dots::after {
+  content: '.';
+  animation: analyzing-dots 1.2s infinite;
+}
+
+@keyframes analyzing-dots {
+  0%,
+  32.9% {
+    content: '.';
+  }
+  33%,
+  65.9% {
+    content: '..';
+  }
+  66%,
+  100% {
+    content: '...';
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .analyzing-dots::after {
+    animation: none !important;
+    content: '...';
+  }
+}

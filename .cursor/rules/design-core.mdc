@@ -1,0 +1,30 @@
+---
+description: Core UX, UI, and accessibility principles for Scanora.
+alwaysApply: true
+---
+
+# Scanora design core
+
+Scanora is a calm health-tech product. Prefer clarity over decoration.
+
+## Product constraints
+
+- One focused flow: upload → understand → chat.
+- No sidebars, dashboards, extra pages, or fake marketing stats.
+- Do not look like a hospital admin tool or a flashy AI landing page.
+
+## Principles
+
+- Keep the main task obvious. Users should always know what they can do next.
+- Use plain language. No jargon, no clever labels.
+- Show status, results, and errors next to the work they belong to.
+- Prevent mistakes when possible (reject unsupported files early).
+- Prefer simple layouts: one column, clear hierarchy, generous but not empty spacing.
+- Accessibility and readable contrast are not optional.
+
+## Avoid
+
+- Glassmorphism, heavy gradients, large shadows, giant heroes
+- Extra cards nested in cards
+- Unnecessary icons, animation, or navigation
+- Storing medical report data in localStorage

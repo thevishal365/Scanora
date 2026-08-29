@@ -1,0 +1,23 @@
+---
+description: Forms, upload validation, and error copy for Scanora.
+globs: frontend/src/**/*.{jsx,js}
+alwaysApply: false
+---
+
+# Forms and validation
+
+- State file rules before the user fails: JPG, JPEG, PNG, and the size limit.
+- Validate as soon as files are chosen. Keep valid files; reject the rest with a clear reason.
+- Put errors next to the upload area. Use text, not color alone.
+- Keep selected images if some files fail. Do not wipe the whole selection.
+- Use human-readable messages. Never show raw MIME types or stack traces.
+
+Allowed now: JPG, JPEG, PNG. Reject PDF, DOCX, TXT, and other types.
+
+```text
+❌ application/pdf is not in ALLOWED_MIME
+✅ PDF files are not supported. Please upload JPG, JPEG, or PNG images.
+```
+
+- Labels must describe the control. Icon-only buttons need an accessible name (for example, “Remove lab-report.png”).
+- The Analyze action stays disabled or shows a clear error when nothing is selected.

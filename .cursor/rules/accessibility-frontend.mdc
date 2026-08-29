@@ -1,0 +1,17 @@
+---
+description: Keyboard, focus, and screen-reader patterns for Scanora.
+globs: frontend/src/**/*.{jsx,css}
+alwaysApply: false
+---
+
+# Accessibility
+
+- Use semantic HTML: `main`, one `h1`, `button` for actions, `label` for the file input.
+- Every interactive control is keyboard reachable in visual order.
+- Visible focus rings are required. Do not remove outlines without a stronger replacement.
+- Do not rely on color alone for errors, success, or drag-over state; include text.
+- Report previews are informative images: use the filename as `alt`.
+- Remove buttons need `aria-label` that includes the filename.
+- Connect errors with `aria-describedby` / `aria-invalid` on the file input.
+- Text and UI contrast should meet WCAG 2.1 AA.
+- Honor `prefers-reduced-motion`.

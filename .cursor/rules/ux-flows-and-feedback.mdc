@@ -1,0 +1,21 @@
+---
+description: User flow, loading, and feedback patterns for Scanora.
+globs: frontend/src/**/*.{jsx,js}
+alwaysApply: false
+---
+
+# Flows and feedback
+
+Current flow: choose report images → review selection → analyze (later) → chat (later).
+
+- After files are added, show count, previews, and a way to remove each file.
+- For slow work (analysis later), show in-place status near the action, not a toast that disappears.
+- On success, change the page to the result. On error, say what failed and what to try.
+- Do not navigate away or clear files without a user action.
+- Keep loading states on the button or the section that is waiting.
+- Avoid extra animation. Short color/border transitions (150–200ms) are enough.
+
+```text
+❌ Silent click with no response
+✅ “Preparing your reports...” then a clear success or error message
+```
