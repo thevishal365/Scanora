@@ -231,7 +231,7 @@ Temporary processing data is cleaned up after requests where applicable.
 
 ## Live Application
 
-[scanora.netlify.app](https://scanora.netlify.app)
+[scanora-ai.netlify.app](https://scanora-ai.netlify.app/)
 
 ## Project Status
 
