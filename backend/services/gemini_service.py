@@ -1,6 +1,8 @@
+import asyncio
 import json
 import logging
 import os
+import random
 import re
 
 from google import genai
@@ -21,6 +23,12 @@ from services.analysis_schema import (
 logger = logging.getLogger("scanora.gemini")
 REQUEST_TIMEOUT_MS = 120_000
 
+# Retry configuration for transient errors (e.g. 503 UNAVAILABLE / high demand)
+MAX_RETRIES = 3  # Up to 4 total attempts
+BASE_RETRY_DELAY = 1.0  # Initial delay in seconds
+MAX_RETRY_DELAY = 8.0  # Maximum delay in seconds
+RETRY_JITTER_MAX = 0.5  # Random jitter in seconds
+
 
 def _sanitize_error_text(text: str, api_key: str) -> str:
     cleaned = str(text)
@@ -37,6 +45,22 @@ def _settings():
     if not api_key or not model:
         raise GeminiServiceError("not_configured")
     return api_key, model
+
+
+def _is_transient_error(error: Exception) -> bool:
+    """Determine whether an error from Gemini is transient and eligible for retry."""
+    code = getattr(error, "code", None)
+    status = str(getattr(error, "status", None) or "").upper()
+    message = str(getattr(error, "message", None) or error).lower()
+
+    # 503 / UNAVAILABLE / high demand, 500 / INTERNAL, 504 / DEADLINE_EXCEEDED, 502 / BAD_GATEWAY
+    if code in (503, 500, 502, 504):
+        return True
+    if status in {"UNAVAILABLE", "INTERNAL", "DEADLINE_EXCEEDED"}:
+        return True
+    if "high demand" in message or "unavailable" in message or "temporarily overloaded" in message:
+        return True
+    return False
 
 
 def _humanize_genai_error(error: Exception, api_key: str) -> GeminiServiceError:
@@ -79,23 +103,42 @@ async def analyze_report_images(images: list[tuple[bytes, str]]) -> dict:
         http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
     )
 
-    try:
-        response = await client.aio.models.generate_content(
-            model=model,
-            contents=parts,
-            config=types.GenerateContentConfig(
-                system_instruction=SYSTEM_INSTRUCTION,
-                response_mime_type="application/json",
-                response_schema=AnalysisResult,
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                    disable=True
+    response = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=parts,
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    response_schema=AnalysisResult,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True
+                    ),
                 ),
-            ),
-        )
-    except GeminiServiceError:
-        raise
-    except Exception as error:
-        raise _humanize_genai_error(error, api_key) from None
+            )
+            break
+        except GeminiServiceError:
+            raise
+        except Exception as error:
+            if _is_transient_error(error) and attempt < MAX_RETRIES:
+                delay = min(MAX_RETRY_DELAY, BASE_RETRY_DELAY * (2 ** attempt)) + random.uniform(0, RETRY_JITTER_MAX)
+                logger.warning(
+                    "Gemini transient error on analyze (attempt %d/%d): %s. Retrying in %.2fs...",
+                    attempt + 1,
+                    MAX_RETRIES + 1,
+                    _sanitize_error_text(getattr(error, "message", None) or error, api_key),
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+            logger.error(
+                "Gemini analyze failed on attempt %d/%d (retries exhausted or non-retryable)",
+                attempt + 1,
+                MAX_RETRIES + 1,
+            )
+            raise _humanize_genai_error(error, api_key) from None
 
     parsed = getattr(response, "parsed", None)
     if parsed is not None:
@@ -172,23 +215,42 @@ async def answer_report_question(
 
     client = _chat_client(api_key)
 
-    try:
-        response = await client.aio.models.generate_content(
-            model=model,
-            contents=contents,
-            config=types.GenerateContentConfig(
-                system_instruction=CHAT_SYSTEM_INSTRUCTION,
-                response_mime_type="application/json",
-                response_schema=ChatAnswer,
-                automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                    disable=True
+    response = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = await client.aio.models.generate_content(
+                model=model,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=CHAT_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                    response_schema=ChatAnswer,
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                        disable=True
+                    ),
                 ),
-            ),
-        )
-    except GeminiServiceError:
-        raise
-    except Exception as error:
-        raise _humanize_genai_error(error, api_key) from None
+            )
+            break
+        except GeminiServiceError:
+            raise
+        except Exception as error:
+            if _is_transient_error(error) and attempt < MAX_RETRIES:
+                delay = min(MAX_RETRY_DELAY, BASE_RETRY_DELAY * (2 ** attempt)) + random.uniform(0, RETRY_JITTER_MAX)
+                logger.warning(
+                    "Gemini transient error on chat (attempt %d/%d): %s. Retrying in %.2fs...",
+                    attempt + 1,
+                    MAX_RETRIES + 1,
+                    _sanitize_error_text(getattr(error, "message", None) or error, api_key),
+                    delay,
+                )
+                await asyncio.sleep(delay)
+                continue
+            logger.error(
+                "Gemini chat failed on attempt %d/%d (retries exhausted or non-retryable)",
+                attempt + 1,
+                MAX_RETRIES + 1,
+            )
+            raise _humanize_genai_error(error, api_key) from None
 
     parsed = getattr(response, "parsed", None)
     if parsed is not None and hasattr(parsed, "answer"):

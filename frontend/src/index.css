@@ -1,15 +1,43 @@
-@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Noto+Sans:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Noto Sans', system-ui, sans-serif;
-  --font-heading: 'Figtree', system-ui, sans-serif;
-  --color-scanora-primary: #0891b2;
-  --color-scanora-text: #164e63;
-  --color-scanora-muted: #3d6b7a;
-  --color-scanora-bg: #ecfeff;
-  --color-scanora-card: #ffffff;
-  --color-scanora-border: #a5f3fc;
+  --font-sans: 'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Figtree', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Calm Clinical Editorial semantic tokens */
+  --color-scanora-canvas: #f5f8f7;
+  --color-scanora-surface: #ffffff;
+  --color-scanora-surface-muted: #eef4f2;
+  --color-scanora-surface-subtle: #f9fbfa;
+
+  --color-scanora-ink: #17324d;
+  --color-scanora-text: #17324d;
+  --color-scanora-muted: #557080;
+  --color-scanora-faint: #7e96a6;
+
+  --color-scanora-border: #d6e3e0;
+  --color-scanora-border-subtle: #e4ede9;
+  --color-scanora-border-strong: #b8cbc6;
+
+  --color-scanora-brand: #087f8c;
+  --color-scanora-primary: #087f8c;
+  --color-scanora-primary-dark: #06636e;
+  --color-scanora-brand-hover: #06636e;
+  --color-scanora-brand-soft: #e6f3f5;
+
+  --color-scanora-attention: #a96324;
+  --color-scanora-attention-soft: #fff4e7;
+  --color-scanora-attention-border: #f3d5b5;
+
+  --color-scanora-success: #2f725b;
+  --color-scanora-success-soft: #ecf7f1;
+  --color-scanora-success-border: #c4e6d6;
+
+  --color-scanora-error: #a63d3d;
+  --color-scanora-error-soft: #fff0ef;
+  --color-scanora-error-border: #fad1ce;
 }
 
 .sr-only {
@@ -25,18 +53,178 @@
 }
 
 html {
-  background-color: var(--color-scanora-bg);
+  background-color: var(--color-scanora-canvas);
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
-  background-color: var(--color-scanora-bg);
-  color: var(--color-scanora-text);
+  background-color: var(--color-scanora-canvas);
+  color: var(--color-scanora-ink);
   font-family: var(--font-sans);
   font-size: 1rem;
   line-height: 1.6;
 }
 
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+button,
+label {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Page Frame - refined editorial rhythm */
+.scanora-page {
+  min-height: 100vh;
+  padding: 24px 16px 36px;
+}
+
+@media (min-width: 640px) {
+  .scanora-page {
+    padding: 36px 20px 48px;
+  }
+}
+
+.scanora-content {
+  width: min(100%, 700px);
+  margin: 0 auto;
+}
+
+/* Panels and Surface Containers */
+.scanora-panel {
+  border: 1px solid var(--color-scanora-border);
+  border-radius: 8px;
+  background: var(--color-scanora-surface);
+  box-shadow: 0 1px 2px rgba(23, 50, 77, 0.02);
+}
+
+.scanora-panel-muted {
+  border: 1px solid var(--color-scanora-border-subtle);
+  border-radius: 8px;
+  background: var(--color-scanora-surface-muted);
+}
+
+/* Typography Helpers */
+.scanora-kicker {
+  color: var(--color-scanora-brand);
+  font-family: var(--font-heading);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+/* Focus Rings (Accessibility WCAG AA) */
+.scanora-focus-ring:focus-visible {
+  outline: 3px solid var(--color-scanora-brand);
+  outline-offset: 2px;
+}
+
+/* Action Controls (Buttons) */
+.scanora-button-primary,
+.scanora-button-secondary {
+  min-height: 46px;
+  border-radius: 8px;
+  padding: 11px 18px;
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.2;
+  transition: background-color 180ms ease, border-color 180ms ease,
+    color 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+}
+
+.scanora-button-primary {
+  background: var(--color-scanora-brand);
+  color: #ffffff;
+  border: 1px solid transparent;
+}
+
+.scanora-button-primary:hover:not(:disabled) {
+  background: var(--color-scanora-brand-hover);
+}
+
+.scanora-button-primary:disabled,
+.scanora-button-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.60;
+}
+
+.scanora-button-secondary {
+  border: 1px solid var(--color-scanora-border);
+  background: var(--color-scanora-surface);
+  color: var(--color-scanora-ink);
+}
+
+.scanora-button-secondary:hover:not(:disabled) {
+  border-color: var(--color-scanora-brand);
+  background: var(--color-scanora-surface-muted);
+  color: var(--color-scanora-brand-hover);
+}
+
+/* Status Callouts */
+.scanora-error {
+  border: 1px solid var(--color-scanora-error-border);
+  border-radius: 8px;
+  background: var(--color-scanora-error-soft);
+  color: var(--color-scanora-error);
+}
+
+.scanora-attention-callout {
+  border: 1px solid var(--color-scanora-attention-border);
+  border-radius: 8px;
+  background: var(--color-scanora-attention-soft);
+  color: var(--color-scanora-attention);
+}
+
+.scanora-success-callout {
+  border: 1px solid var(--color-scanora-success-border);
+  border-radius: 8px;
+  background: var(--color-scanora-success-soft);
+  color: var(--color-scanora-success);
+}
+
+/* Interactive Pills / Badges */
+.scanora-pill-attention {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 9px;
+  border-radius: 9999px;
+  background: var(--color-scanora-attention-soft);
+  border: 1px solid var(--color-scanora-attention-border);
+  color: var(--color-scanora-attention);
+  font-family: var(--font-heading);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.scanora-pill-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2.5px 9px;
+  border-radius: 9999px;
+  background: var(--color-scanora-success-soft);
+  border: 1px solid var(--color-scanora-success-border);
+  color: var(--color-scanora-success);
+  font-family: var(--font-heading);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Loading indicator */
 .analyzing-dots {
   display: inline-block;
   min-width: 1.15em;
@@ -63,6 +251,7 @@ body {
   }
 }
 
+/* Accessibility: Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

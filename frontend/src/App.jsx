@@ -20,7 +20,9 @@ function App() {
   const selectedItemsRef = useRef(selectedItems)
   const isBusy = status === 'uploading'
 
-  selectedItemsRef.current = selectedItems
+  useEffect(() => {
+    selectedItemsRef.current = selectedItems
+  }, [selectedItems])
 
   useEffect(() => {
     return () => {
@@ -31,7 +33,7 @@ function App() {
   }, [])
 
   function clearSelectedFiles() {
-    selectedItemsRef.current.forEach((item) => {
+    selectedItems.forEach((item) => {
       URL.revokeObjectURL(item.previewUrl)
     })
     setSelectedItems([])
@@ -158,66 +160,93 @@ function App() {
   const showResults = analysis && status === 'success'
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 pt-8 pb-6 sm:px-6 sm:pt-10 sm:pb-8">
-      <header className="flex justify-center">
-        <ScanoraBrand />
-      </header>
-      <h1 className="font-heading mx-auto mt-6 max-w-lg text-center text-2xl font-semibold tracking-tight text-scanora-text sm:text-3xl">
-        Understand Your Reports, Simply.
-      </h1>
-      {!showResults && (
-        <p className="mx-auto mt-3 max-w-xl text-center text-sm leading-relaxed font-normal text-scanora-muted sm:text-base">
-          Upload your medical reports to understand them in simpler language.
-        </p>
-      )}
+    <main className="scanora-page">
+      <div className="scanora-content">
+        {/* Top brand header bar */}
+        <header className="flex items-center justify-between border-b border-scanora-border-subtle pb-3.5">
+          <ScanoraBrand />
+          <div className="flex items-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-scanora-border-subtle bg-scanora-surface px-2.5 py-0.5 text-[11px] font-medium text-scanora-muted">
+              <span className="h-1.5 w-1.5 rounded-full bg-scanora-primary" aria-hidden="true" />
+              Session Only
+            </span>
+          </div>
+        </header>
 
-      {showResults ? (
-        <AnalysisResultView analysis={analysis} onStartOver={startOver} />
-      ) : (
-        <div className="mx-auto mt-8 w-full max-w-xl">
-          <UploadArea
-            inputId={FILE_INPUT_ID}
-            errorId={FILE_ERROR_ID}
-            errorMessage={errorMessage}
-            isDragging={isDragging}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setIsDragging(true)
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={(event) => {
-              event.preventDefault()
-              setIsDragging(false)
-              addFiles(event.dataTransfer.files)
-            }}
-            onFilesChosen={addFiles}
-          />
-
-          <ImagePreviewList items={selectedItems} onRemove={removeItem} />
-
-          <button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={isBusy}
-            aria-busy={isBusy}
-            className="mt-5 inline-flex min-h-12 w-full cursor-pointer items-center justify-center rounded-lg bg-scanora-primary px-4 font-heading text-base font-semibold text-white transition-colors duration-200 hover:bg-cyan-700 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-scanora-primary disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-scanora-primary"
-          >
-            {isBusy ? (
-              <>
-                Analyzing your reports
-                <span className="analyzing-dots" aria-hidden="true" />
-              </>
-            ) : (
-              'Analyze Reports'
-            )}
-          </button>
-
-          <PrivacyNote />
+        {/* Hero title & editorial lead */}
+        <div className="mx-auto mt-6 max-w-xl text-center sm:mt-8">
+          <p className="scanora-kicker">Clinical Document Assistant</p>
+          <h1 className="font-heading mx-auto mt-2 text-2xl font-semibold leading-tight text-scanora-text sm:text-[28px]">
+            Understand Your Reports, Simply.
+          </h1>
+          {!showResults && (
+            <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-scanora-muted sm:text-sm">
+              Upload diagnostic or lab report images. Scanora highlights attention-worthy values and explains findings in clear, non-diagnostic terms.
+            </p>
+          )}
         </div>
-      )}
 
-      <Disclaimer />
-      <PageFooter />
+        {/* Main Work Area */}
+        {showResults ? (
+          <AnalysisResultView analysis={analysis} onStartOver={startOver} />
+        ) : (
+          <div className="mx-auto mt-5 w-full sm:mt-6">
+            <UploadArea
+              inputId={FILE_INPUT_ID}
+              errorId={FILE_ERROR_ID}
+              errorMessage={errorMessage}
+              isDragging={isDragging}
+              onDragOver={(event) => {
+                event.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={(event) => {
+                event.preventDefault()
+                setIsDragging(false)
+                addFiles(event.dataTransfer.files)
+              }}
+              onFilesChosen={addFiles}
+            />
+
+            <ImagePreviewList items={selectedItems} onRemove={removeItem} />
+
+            <button
+              type="button"
+              onClick={handleAnalyze}
+              disabled={isBusy}
+              aria-busy={isBusy}
+              className="scanora-button-primary scanora-focus-ring mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2"
+            >
+              {isBusy ? (
+                <>
+                  <span>Analyzing your reports</span>
+                  <span className="analyzing-dots" aria-hidden="true" />
+                </>
+              ) : (
+                <>
+                  <span>Analyze Reports</span>
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2.5"
+                    stroke="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </>
+              )}
+            </button>
+
+            <PrivacyNote />
+          </div>
+        )}
+
+        <Disclaimer />
+        <PageFooter />
+      </div>
     </main>
   )
 }
