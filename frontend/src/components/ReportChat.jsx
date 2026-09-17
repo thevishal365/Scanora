@@ -1,20 +1,74 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { messageFromResponse } from '../errors'
+
+export const CHAT_STORAGE_KEY = 'scanora:chat'
+
+function loadStoredMessages() {
+  try {
+    const raw = sessionStorage.getItem(CHAT_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item) =>
+            item &&
+            (item.role === 'user' || item.role === 'assistant') &&
+            typeof item.text === 'string',
+        )
+      }
+    }
+  } catch {
+    // Ignore corrupted storage.
+  }
+  return []
+}
 
 function ReportChat({ reportContext }) {
-  const [messages, setMessages] = useState([])
+  const [messages, setMessages] = useState(loadStoredMessages)
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [failedMessage, setFailedMessage] = useState('')
 
-  function messageFromResponse(data, fallback) {
-    if (data && typeof data.detail === 'string' && data.detail.trim()) {
-      return data.detail
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
+    } catch {
+      // Persistence is best-effort.
     }
-    return fallback
+  }, [messages])
+
+  function markUserMessage(text, updates) {
+    setMessages((current) =>
+      current.map((item) =>
+        item.role === 'user' && item.text === text
+          ? { ...item, ...updates }
+          : item,
+      ),
+    )
   }
 
-  async function sendMessage() {
-    const text = draft.trim()
+  function upsertUserMessage(text) {
+    setMessages((current) => {
+      const existingFailed = current.some(
+        (item) => item.role === 'user' && item.text === text && item.failed,
+      )
+      if (existingFailed) {
+        return current.map((item) =>
+          item.role === 'user' && item.text === text && item.failed
+            ? { ...item, failed: false, sending: true }
+            : item,
+        )
+      }
+      return [
+        ...current,
+        { id: crypto.randomUUID(), role: 'user', text, sending: true },
+      ]
+    })
+  }
+
+  async function sendMessage(override) {
+    const text = override ? override.trim() : draft.trim()
     if (!text || isSending) {
       return
     }
@@ -24,13 +78,13 @@ function ReportChat({ reportContext }) {
       content: item.text,
     }))
 
-    setDraft('')
     setErrorMessage('')
     setIsSending(true)
-    setMessages((current) => [
-      ...current,
-      { id: crypto.randomUUID(), role: 'user', text },
-    ])
+    setFailedMessage('')
+    if (!override) {
+      setDraft('')
+    }
+    upsertUserMessage(text)
 
     try {
       const response = await fetch('/api/chat', {
@@ -51,17 +105,14 @@ function ReportChat({ reportContext }) {
       }
 
       if (!response.ok) {
-        if ([502, 503, 504].includes(response.status)) {
-          setErrorMessage(
-            messageFromResponse(
-              data,
-              'Scanora could not reach the server. Make sure the backend is running and try again.',
-            ),
-          )
-          return
+        if (!override) {
+          setDraft(text)
         }
+        markUserMessage(text, { failed: true, sending: false })
+        setFailedMessage(text)
         setErrorMessage(
           messageFromResponse(
+            response,
             data,
             'Your question could not be answered right now. Please try again.',
           ),
@@ -69,17 +120,35 @@ function ReportChat({ reportContext }) {
         return
       }
 
-      const answer = data && typeof data.answer === 'string' ? data.answer.trim() : ''
+      const answer =
+        data && typeof data.answer === 'string' ? data.answer.trim() : ''
       if (!answer) {
-        setErrorMessage('Your question could not be answered right now. Please try again.')
+        if (!override) {
+          setDraft(text)
+        }
+        markUserMessage(text, { failed: true, sending: false })
+        setFailedMessage(text)
+        setErrorMessage(
+          'Your question could not be answered right now. Please try again.',
+        )
         return
       }
 
-      setMessages((current) => [
-        ...current,
-        { id: crypto.randomUUID(), role: 'assistant', text: answer },
-      ])
+      setMessages((current) => {
+        const cleared = current.map((item) =>
+          item.sending ? { ...item, sending: false } : item,
+        )
+        return [
+          ...cleared,
+          { id: crypto.randomUUID(), role: 'assistant', text: answer },
+        ]
+      })
     } catch {
+      if (!override) {
+        setDraft(text)
+      }
+      markUserMessage(text, { failed: true, sending: false })
+      setFailedMessage(text)
       setErrorMessage(
         'Scanora could not reach the server. Make sure the backend is running and try again.',
       )
@@ -127,6 +196,11 @@ function ReportChat({ reportContext }) {
                   <span className="text-[10px] font-semibold tracking-wider text-scanora-muted uppercase font-heading">
                     {item.role === 'user' ? 'You' : 'Scanora Assistant'}
                   </span>
+                  {item.failed && (
+                    <span className="text-[10px] font-semibold text-scanora-error">
+                      Not sent
+                    </span>
+                  )}
                 </div>
                 <p className="whitespace-pre-wrap">{item.text}</p>
               </li>
@@ -142,9 +216,19 @@ function ReportChat({ reportContext }) {
         )}
 
         {errorMessage && (
-          <p role="alert" className="scanora-error mt-3 px-3 py-2 text-xs leading-relaxed">
-            {errorMessage}
-          </p>
+          <div role="alert" className="scanora-error mt-3 px-3 py-2 text-xs leading-relaxed">
+            <p className="break-words">{errorMessage}</p>
+            {failedMessage && (
+              <button
+                type="button"
+                onClick={() => sendMessage(failedMessage)}
+                disabled={isSending}
+                className="scanora-focus-ring mt-2 inline-flex cursor-pointer items-center rounded-md border border-scanora-error-border bg-scanora-surface px-3 py-1.5 text-xs font-medium text-scanora-error transition-colors duration-180 hover:bg-scanora-surface-muted disabled:opacity-60"
+              >
+                Try again
+              </button>
+            )}
+          </div>
         )}
 
         <label htmlFor="report-chat-input" className="sr-only">
@@ -164,7 +248,7 @@ function ReportChat({ reportContext }) {
 
           <button
             type="button"
-            onClick={sendMessage}
+            onClick={() => sendMessage()}
             disabled={isSending || draft.trim() === ''}
             className="scanora-button-primary scanora-focus-ring inline-flex h-[48px] shrink-0 cursor-pointer items-center justify-center gap-2 sm:w-auto"
           >

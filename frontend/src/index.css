@@ -82,12 +82,13 @@ label {
 /* Page Frame - refined editorial rhythm */
 .scanora-page {
   min-height: 100vh;
-  padding: 24px 16px 36px;
+  min-height: 100dvh;
+  padding: 24px 16px calc(36px + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 640px) {
   .scanora-page {
-    padding: 36px 20px 48px;
+    padding: 36px 20px calc(48px + env(safe-area-inset-bottom));
   }
 }
 

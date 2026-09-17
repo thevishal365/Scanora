@@ -233,7 +233,7 @@ Colors are layered systematically to direct focus, establish certainty boundarie
   * Background: `--color-scanora-surface`.
   * Icon: Gentle document upload icon in `--color-scanora-brand`.
   * Clear instructions: "Drag & drop report images here, or browse files".
-  * Format & size support clearly articulated: "JPG, JPEG, or PNG up to 10 MB each. Multiple images supported."
+  * Format & size support clearly articulated: "JPG, JPEG, PNG, or PDF up to 10 MB each. Multiple files supported."
 * **Active Drag-Over State**:
   * Border: `1.5px solid --color-scanora-brand`.
   * Background: `--color-scanora-surface-muted`.

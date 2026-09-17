@@ -22,7 +22,7 @@ from report_upload import (
     mime_is_allowed,
 )
 from services.analysis_schema import GeminiServiceError
-from services.gemini_service import analyze_report_images, answer_report_question
+from services.gemini_service import analyze_report_files, answer_report_question
 
 app = FastAPI(title="Scanora")
 
@@ -63,7 +63,7 @@ def health():
     }
 
 
-async def read_upload_capped(upload: UploadFile) -> bytes:
+async def read_upload_capped(upload: UploadFile, filename: str = "file") -> bytes:
     chunks = []
     total = 0
 
@@ -73,7 +73,10 @@ async def read_upload_capped(upload: UploadFile) -> bytes:
             break
         total += len(chunk)
         if total > MAX_FILE_BYTES:
-            raise HTTPException(status_code=413, detail=HUMAN_ERRORS["too_large"])
+            raise HTTPException(
+                status_code=413,
+                detail=f"{filename}: {HUMAN_ERRORS['too_large']}",
+            )
         chunks.append(chunk)
 
     return b"".join(chunks)
@@ -84,36 +87,50 @@ async def analyze(files: list[UploadFile] | None = File(default=None)):
     if not files:
         raise HTTPException(status_code=400, detail=HUMAN_ERRORS["no_files"])
 
-    images = []
+    file_parts = []
 
     try:
         for upload in files:
+            filename = upload.filename or "uploaded file"
+
             extension = file_extension(upload.filename)
             mime_type = (upload.content_type or "").lower()
 
             if extension not in ALLOWED_EXTENSIONS:
                 raise HTTPException(
                     status_code=400,
-                    detail=extension_error_message(upload.filename),
+                    detail=f"{filename}: {extension_error_message(filename)}",
                 )
 
             if not mime_is_allowed(mime_type):
-                raise HTTPException(status_code=400, detail=HUMAN_ERRORS["unsupported"])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{filename}: {HUMAN_ERRORS['unsupported']}",
+                )
 
             if not extension_and_mime_agree(extension, mime_type):
-                raise HTTPException(status_code=400, detail=HUMAN_ERRORS["unsupported"])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{filename}: {HUMAN_ERRORS['unsupported']}",
+                )
 
-            content = await read_upload_capped(upload)
+            content = await read_upload_capped(upload, filename)
 
             if not content:
-                raise HTTPException(status_code=400, detail=HUMAN_ERRORS["empty"])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{filename}: {HUMAN_ERRORS['empty']}",
+                )
 
             if not content_matches_type(extension, content):
-                raise HTTPException(status_code=400, detail=HUMAN_ERRORS["not_image"])
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"{filename}: {HUMAN_ERRORS['not_image']}",
+                )
 
-            images.append((content, mime_for_extension(extension)))
+            file_parts.append((content, mime_for_extension(extension)))
 
-        analysis = await analyze_report_images(images)
+        analysis = await analyze_report_files(file_parts)
     except HTTPException:
         raise
     except GeminiServiceError as error:

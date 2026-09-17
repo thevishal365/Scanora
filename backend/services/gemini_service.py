@@ -88,14 +88,17 @@ def _humanize_genai_error(error: Exception, api_key: str) -> GeminiServiceError:
     return GeminiServiceError("upstream")
 
 
-async def analyze_report_images(images: list[tuple[bytes, str]]) -> dict:
-    if not images:
+async def analyze_report_files(files: list[tuple[bytes, str]]) -> dict:
+    if not files:
         raise GeminiServiceError("empty_response")
 
     api_key, model = _settings()
 
+    # Parts are sent with their exact MIME type ("image/jpeg", "image/png", or
+    # "application/pdf"), so Gemini handles images and PDF documents natively.
+    # Requires a Gemini model that supports document (PDF) input.
     parts = [types.Part.from_text(text=USER_INSTRUCTION)]
-    for content, mime_type in images:
+    for content, mime_type in files:
         parts.append(types.Part.from_bytes(data=content, mime_type=mime_type))
 
     client = genai.Client(

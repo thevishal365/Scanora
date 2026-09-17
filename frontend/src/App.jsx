@@ -4,19 +4,38 @@ import Disclaimer from './components/Disclaimer'
 import ImagePreviewList from './components/ImagePreviewList'
 import PageFooter from './components/PageFooter'
 import PrivacyNote from './components/PrivacyNote'
+import { CHAT_STORAGE_KEY } from './components/ReportChat'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
+import { messageFromResponse } from './errors'
 import { formatFileSize, splitReportFiles } from './reportFiles'
 
 const FILE_INPUT_ID = 'report-images'
 const FILE_ERROR_ID = 'report-images-error'
+const SESSION_KEY = 'scanora:session'
+
+function readSession() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null')
+    return saved && typeof saved === 'object' ? saved : null
+  } catch {
+    return null
+  }
+}
 
 function App() {
   const [selectedItems, setSelectedItems] = useState([])
   const [isDragging, setIsDragging] = useState(false)
+  const [fileErrors, setFileErrors] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
-  const [status, setStatus] = useState('idle')
-  const [analysis, setAnalysis] = useState(null)
+  const [status, setStatus] = useState(() => {
+    const saved = readSession()
+    return saved && saved.status === 'success' ? 'success' : 'idle'
+  })
+  const [analysis, setAnalysis] = useState(() => {
+    const saved = readSession()
+    return saved && saved.analysis ? saved.analysis : null
+  })
   const selectedItemsRef = useRef(selectedItems)
   const isBusy = status === 'uploading'
 
@@ -32,6 +51,18 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    try {
+      if (status === 'success' && analysis) {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ analysis, status }))
+      } else if (status === 'idle') {
+        sessionStorage.removeItem(SESSION_KEY)
+      }
+    } catch {
+      // Storage may be unavailable; persistence is best-effort.
+    }
+  }, [analysis, status])
+
   function clearSelectedFiles() {
     selectedItems.forEach((item) => {
       URL.revokeObjectURL(item.previewUrl)
@@ -39,12 +70,12 @@ function App() {
     setSelectedItems([])
   }
 
-  function addFiles(fileList) {
+  async function addFiles(fileList) {
     if (!fileList || fileList.length === 0) {
       return
     }
 
-    const { accepted, errors } = splitReportFiles(fileList)
+    const { accepted, errors } = await splitReportFiles(fileList)
 
     if (accepted.length > 0) {
       const newItems = accepted.map((file) => ({
@@ -57,7 +88,8 @@ function App() {
       setStatus('idle')
     }
 
-    setErrorMessage(errors[0] || '')
+    setErrorMessage('')
+    setFileErrors(errors.map((entry) => `${entry.file}: ${entry.reason}`))
   }
 
   function removeItem(id) {
@@ -71,18 +103,22 @@ function App() {
     setStatus('idle')
   }
 
+  function clearStoredSession() {
+    try {
+      sessionStorage.removeItem(SESSION_KEY)
+      sessionStorage.removeItem(CHAT_STORAGE_KEY)
+    } catch {
+      // Ignore storage errors during reset.
+    }
+  }
+
   function startOver() {
     clearSelectedFiles()
     setAnalysis(null)
     setStatus('idle')
     setErrorMessage('')
-  }
-
-  function messageFromResponse(data, fallback) {
-    if (data && typeof data.detail === 'string' && data.detail.trim()) {
-      return data.detail
-    }
-    return fallback
+    setFileErrors([])
+    clearStoredSession()
   }
 
   async function handleAnalyze() {
@@ -119,21 +155,9 @@ function App() {
 
       if (!response.ok) {
         setStatus('error')
-        if (response.status === 413) {
-          setErrorMessage('Each image must be 10 MB or smaller.')
-          return
-        }
-        if ([429, 502, 503, 504].includes(response.status)) {
-          setErrorMessage(
-            messageFromResponse(
-              data,
-              'Scanora could not finish analyzing these reports. Please try again.',
-            ),
-          )
-          return
-        }
         setErrorMessage(
           messageFromResponse(
+            response,
             data,
             'Your reports could not be analyzed. Please try again.',
           ),
@@ -158,6 +182,8 @@ function App() {
   }
 
   const showResults = analysis && status === 'success'
+  const activeErrors =
+    status === 'error' && errorMessage ? [errorMessage] : fileErrors
 
   return (
     <main className="scanora-page">
@@ -181,7 +207,7 @@ function App() {
           </h1>
           {!showResults && (
             <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-scanora-muted sm:text-sm">
-              Upload diagnostic or lab report images. Scanora highlights attention-worthy values and explains findings in clear, non-diagnostic terms.
+              Upload diagnostic or lab report files. Scanora highlights attention-worthy values and explains findings in clear, non-diagnostic terms.
             </p>
           )}
         </div>
@@ -194,7 +220,7 @@ function App() {
             <UploadArea
               inputId={FILE_INPUT_ID}
               errorId={FILE_ERROR_ID}
-              errorMessage={errorMessage}
+              errors={activeErrors}
               isDragging={isDragging}
               onDragOver={(event) => {
                 event.preventDefault()
@@ -209,7 +235,11 @@ function App() {
               onFilesChosen={addFiles}
             />
 
-            <ImagePreviewList items={selectedItems} onRemove={removeItem} />
+            <ImagePreviewList
+              items={selectedItems}
+              onRemove={removeItem}
+              onClearAll={clearSelectedFiles}
+            />
 
             <button
               type="button"

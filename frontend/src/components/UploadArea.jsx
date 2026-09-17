@@ -3,7 +3,7 @@ import { MAX_FILE_BYTES } from '../reportFiles'
 function UploadArea({
   inputId,
   errorId,
-  errorMessage,
+  errors,
   isDragging,
   onDragOver,
   onDragLeave,
@@ -11,6 +11,7 @@ function UploadArea({
   onFilesChosen,
 }) {
   const maxSizeLabel = `${MAX_FILE_BYTES / (1024 * 1024)} MB`
+  const hasErrors = errors && errors.length > 0
 
   return (
     <div className="w-full">
@@ -28,10 +29,10 @@ function UploadArea({
         <input
           id={inputId}
           type="file"
-          accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+          accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
           multiple
           className="sr-only"
-          aria-invalid={errorMessage ? true : undefined}
+          aria-invalid={hasErrors ? true : undefined}
           aria-describedby={`${inputId}-hint ${errorId}`}
           onChange={(event) => {
             onFilesChosen(event.target.files)
@@ -66,7 +67,7 @@ function UploadArea({
         </div>
 
         <span className="font-heading text-base font-semibold text-scanora-text sm:text-[17px]">
-          {isDragging ? 'Drop report images to attach' : 'Drop report images here'}
+          {isDragging ? 'Drop report images or PDFs to attach' : 'Drop report images or PDFs here'}
         </span>
 
         <span className="mt-1 text-xs text-scanora-muted sm:text-sm">
@@ -80,19 +81,25 @@ function UploadArea({
           id={`${inputId}-hint`}
           className="mt-3 text-[11px] leading-normal text-scanora-faint sm:text-xs"
         >
-          JPG or PNG • Up to {maxSizeLabel} per image • Multiple pages supported
+          JPG, JPEG, PNG, or PDF • Up to {maxSizeLabel} per file • Multiple files supported
         </span>
       </label>
 
-      <p
+      <div
         id={errorId}
         role="alert"
-        className={`mt-2.5 min-h-0 px-3 py-2 text-xs leading-relaxed sm:text-sm ${
-          errorMessage ? 'scanora-error' : 'sr-only'
-        }`}
+        className={
+          hasErrors
+            ? 'scanora-error mt-2.5 space-y-1 px-3 py-2 text-xs leading-relaxed sm:text-sm'
+            : 'sr-only'
+        }
       >
-        {errorMessage}
-      </p>
+        {errors.map((error, index) => (
+          <p key={index} className="break-words">
+            {error}
+          </p>
+        ))}
+      </div>
     </div>
   )
 }

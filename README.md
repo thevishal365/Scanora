@@ -6,8 +6,9 @@ Scanora lets users upload one or multiple medical report images and uses Google 
 
 ## Features
 
-- Multiple medical report image uploads
-- JPG, JPEG, and PNG support
+- Multiple medical report file uploads
+- JPG, JPEG, PNG, and PDF support
+- Multiple files per upload
 - Direct Gemini image analysis
 - Attention-worthy findings only
 - Reference-range based filtering when ranges are present in the report
@@ -81,7 +82,7 @@ Scanora/
 
 ## Backend
 
-The backend handles image uploads, Gemini analysis, report-specific chat, validation, and temporary request processing.
+The backend handles file uploads, Gemini analysis, report-specific chat, validation, and temporary request processing.
 
 ### Main Services
 
@@ -109,7 +110,7 @@ GET  /api/health
 
 `POST /api/analyze`
 
-Accepts one or multiple JPG/JPEG/PNG images and sends them to Gemini for direct image analysis.
+Accepts one or multiple JPG/JPEG/PNG/PDF files (up to 10 MB each) and sends them to Gemini for direct analysis.
 
 The result is filtered to show only findings that are supported by the uploaded report, such as values outside a reference range or findings explicitly flagged by the report.
 
@@ -147,9 +148,12 @@ Do not commit `.env`.
 
 Scanora does not require login or signup.
 
-Uploaded reports and chat context are used for the current analysis session and are not permanently stored by Scanora.
+To analyze your reports, the uploaded files and analysis requests are transmitted to the Scanora backend and processed by the Google Gemini API. No data is permanently stored by Scanora.
 
-There is no database, patient history, or saved-report system.
+After analysis:
+
+- **Server-side**: Report files and chat context are used only for the current request and are not permanently stored by Scanora. There is no database, patient history, or saved-report system.
+- **Browser-side**: Analysis results and chat history are temporarily stored in the browser's `sessionStorage` so a page refresh can recover the session. This data is scoped to the current tab session and is cleared when the browser session/tab ends.
 
 ## Medical Safety
 
@@ -223,11 +227,30 @@ Scanora does not use a database.
 It does not permanently save:
 
 - patient information
-- uploaded report images
+- uploaded report files
 - report history
 - chat history
 
 Temporary processing data is cleaned up after requests where applicable.
+
+## Tests
+
+### Backend
+
+```powershell
+python -m pytest backend/tests/ -v
+```
+
+Backend tests cover upload validation (extensions, MIME types, magic bytes, and the 10 MB per-file limit), the `/api/analyze` endpoint, and mixed JPG/PNG/PDF requests. A Gemini PDF integration test is included and skipped unless `GEMINI_API_KEY` and `GEMINI_MODEL` are set (run it explicitly with the integration marker).
+
+### Frontend
+
+```powershell
+cd frontend
+npm test
+```
+
+Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections.
 
 ## Live Application
 

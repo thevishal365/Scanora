@@ -11,6 +11,7 @@ function AnalysisResultView({ analysis, onStartOver }) {
     .map((report, index) => ({
       name: report.report_name || `Report ${index + 1}`,
       values: valuesNeedingAttention(report.important_values),
+      keyFindings: report.key_findings || [],
       summary: report.summary,
       explanation: report.simple_explanation,
     }))
@@ -18,9 +19,12 @@ function AnalysisResultView({ analysis, onStartOver }) {
 
   const showReportNames = reportGroups.length > 1
   const hasAttention = attentionGroups.length > 0
-  const keyFindings = attentionGroups.flatMap((group) =>
+  const computedFindings = attentionGroups.flatMap((group) =>
     group.values.map(attentionKeyFinding),
   )
+  const modelKeyFindings = reportGroups.flatMap((group) => group.keyFindings)
+  const displayKeyFindings =
+    modelKeyFindings.length > 0 ? modelKeyFindings : computedFindings
 
   return (
     <div className="mt-6 text-left sm:mt-7">
@@ -143,7 +147,7 @@ function AnalysisResultView({ analysis, onStartOver }) {
       </section>
 
       {/* Key Findings List */}
-      {hasAttention && keyFindings.length > 0 && (
+      {hasAttention && displayKeyFindings.length > 0 && (
         <section
           className="mt-6 border-t border-scanora-border-subtle pt-5"
           aria-labelledby="key-findings-heading"
@@ -155,7 +159,7 @@ function AnalysisResultView({ analysis, onStartOver }) {
             Key Observations
           </h3>
           <ul className="mt-3 space-y-2 text-xs leading-relaxed text-scanora-text sm:text-sm">
-            {keyFindings.map((finding, index) => (
+            {displayKeyFindings.map((finding, index) => (
               <li key={`${finding}-${index}`} className="flex items-start gap-2.5">
                 <span
                   aria-hidden="true"
