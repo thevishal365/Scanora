@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { messageFromResponse } from '../errors'
+import { apiUrl } from '../api'
 
 export const CHAT_STORAGE_KEY = 'scanora:chat'
 
@@ -87,7 +88,7 @@ function ReportChat({ reportContext }) {
     upsertUserMessage(text)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -8,4 +8,4 @@ ENV_PATH = ROOT_DIR / ".env"
 
 
 def load_scanora_env() -> None:
-    load_dotenv(ENV_PATH, override=True)
+    load_dotenv(ENV_PATH, override=False)

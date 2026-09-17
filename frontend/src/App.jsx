@@ -8,6 +8,7 @@ import { CHAT_STORAGE_KEY } from './components/ReportChat'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
 import { messageFromResponse } from './errors'
+import { apiUrl } from './api'
 import { formatFileSize, splitReportFiles } from './reportFiles'
 
 const FILE_INPUT_ID = 'report-images'
@@ -141,7 +142,7 @@ function App() {
     setStatus('uploading')
 
     try {
-      const response = await fetch('/api/analyze', {
+      const response = await fetch(apiUrl('/api/analyze'), {
         method: 'POST',
         body: formData,
       })
