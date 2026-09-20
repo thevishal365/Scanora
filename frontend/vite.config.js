@@ -10,7 +10,8 @@ export default defineConfig({
     },
   },
   test: {
-    environment: 'node',
-    include: ['src/**/*.test.js'],
+    environment: 'jsdom',
+    include: ['src/**/*.test.js', 'src/**/*.test.jsx'],
+    setupFiles: ['./src/testSetup.js'],
   },
 })

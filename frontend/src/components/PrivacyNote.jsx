@@ -16,7 +16,7 @@ function PrivacyNote() {
         />
       </svg>
       <span>
-        No account required • No permanent server-side storage • Analysis results are temporarily stored in your browser session for refresh recovery
+        No account required • No permanent server-side storage • Reports are processed by Google Gemini • Analysis results are temporarily stored in your browser session for refresh recovery
       </span>
     </p>
   )

@@ -1,6 +1,10 @@
+import re
 from pathlib import Path
 
 MAX_FILE_BYTES = 10 * 1024 * 1024
+MAX_FILES = 10
+MAX_TOTAL_BYTES = 30 * 1024 * 1024
+SOURCE_ID_PREFIX = "source-"
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".pdf"}
 ALLOWED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/png", "application/pdf"}
 UNKNOWN_MIME_TYPES = {"", "application/octet-stream"}
@@ -12,23 +16,27 @@ READ_CHUNK_BYTES = 1024 * 1024
 HUMAN_ERRORS = {
     "no_files": "Choose at least one report image before analyzing.",
     "empty": "One of the files was empty. Please upload a JPG, JPEG, PNG, or PDF file.",
-    "too_large": "Each file must be 10 MB or smaller.",
-    "unsupported": "Only JPG, JPEG, PNG, and PDF files are supported.",
-    "not_image": "One of the files is not a valid JPG, JPEG, PNG, or PDF file.",
+    "too_large": "Each file must be 10 MB or smaller. Try a smaller or compressed file.",
+    "too_many_files": "You can analyze up to 10 files at a time. Remove some files and try again.",
+    "total_too_large": "The selected files exceed 30 MB in total. Remove some files and try again.",
+    "unsupported": "Only JPG, JPEG, PNG, and PDF files are supported. Please convert the file and try again.",
+    "not_image": "One of the files is not a valid JPG, JPEG, PNG, or PDF file. Try re-exporting it and upload again.",
     "malformed": "The upload could not be processed. Please try again.",
     "not_configured": "Scanora is not configured to analyze reports yet.",
     "auth": "Scanora could not connect to the analysis service. Please try again later.",
     "timeout": "Analyzing your reports took too long. Please try again.",
-    "invalid_response": "Scanora could not read the analysis result. Please try again.",
+    "invalid_response": "The report could not be interpreted reliably. Please try again with a clearer file.",
     "empty_response": "No analysis was returned for these reports. Please try again.",
     "upstream": "Your reports could not be analyzed right now. Please try again.",
     "quota": "Scanora has reached the current Gemini request limit. Please wait a minute and try again.",
-    "processing": "Something went wrong while reading your reports. Please try again.",
+    "rate_limited": "Too many requests. Please wait a moment and try again.",
+    "processing": "Scanora couldn't complete the analysis right now. Please try again.",
     "chat_empty": "Type a question about your report before sending.",
     "chat_context": "Analyze a report before asking a question.",
+    "chat_expired": "Your previous analysis has expired. Please analyze your reports again.",
     "chat_upstream": "Your question could not be answered right now. Please try again.",
     "chat_timeout": "That question took too long. Please try again.",
-    "chat_invalid": "Scanora could not read the chat reply. Please try again.",
+    "chat_invalid": "Scanora could not read the chat reply reliably. Please try again.",
 }
 
 
@@ -36,6 +44,30 @@ def file_extension(filename: str | None) -> str:
     if not filename or "." not in filename:
         return ""
     return Path(filename).suffix.lower()
+
+
+def build_source_ids(count: int) -> list[str]:
+    """Assign stable per-upload source identities (source-1, source-2, ...).
+
+    Assigned by the upload layer in file order, before anything is sent to
+    Gemini. These IDs — never filenames or model-generated names — are the
+    authoritative provenance identity for each file.
+    """
+    return [f"{SOURCE_ID_PREFIX}{index}" for index in range(1, count + 1)]
+
+
+def safe_display_filename(filename: str | None) -> str:
+    """Sanitize an upload filename for display only (never for identity).
+
+    Strips directories, control characters, and excess length so a hostile
+    filename cannot inject markup or paths into rendered output.
+    """
+    name = (filename or "").strip().replace("\\", "/").split("/")[-1]
+    name = "".join(char for char in name if char.isprintable())
+    name = re.sub(r"\s+", " ", name).strip()
+    if not name:
+        return "report"
+    return name[:80]
 
 
 def extension_error_message(filename: str | None) -> str:

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   ALLOWED_EXTENSIONS,
+  MAX_FILES,
   MAX_FILE_BYTES,
+  MAX_TOTAL_BYTES,
   splitReportFiles,
 } from './reportFiles'
 
@@ -155,5 +157,77 @@ describe('splitReportFiles', () => {
     expect(ALLOWED_EXTENSIONS).toContain('.jpeg')
     expect(ALLOWED_EXTENSIONS).toContain('.png')
     expect(ALLOWED_EXTENSIONS).toContain('.pdf')
+  })
+})
+
+describe('splitReportFiles upload caps', () => {
+  function makeJpg(name) {
+    return makeFile(JPEG_BYTES, name, 'image/jpeg')
+  }
+
+  it('accepts exactly MAX_FILES files', async () => {
+    const batch = Array.from({ length: MAX_FILES }, (_, i) => makeJpg(`page${i}.jpg`))
+    const { accepted, errors } = await splitReportFiles(batch)
+    expect(accepted).toHaveLength(MAX_FILES)
+    expect(errors).toHaveLength(0)
+  })
+
+  it('rejects files beyond MAX_FILES', async () => {
+    const batch = Array.from({ length: MAX_FILES + 1 }, (_, i) => makeJpg(`page${i}.jpg`))
+    const { accepted, errors } = await splitReportFiles(batch)
+    expect(accepted).toHaveLength(MAX_FILES)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].file).toBe(`page${MAX_FILES}.jpg`)
+    expect(errors[0].reason).toMatch(/up to 10 files/)
+  })
+
+  it('counts already-selected files against MAX_FILES', async () => {
+    const { accepted, errors } = await splitReportFiles(
+      [makeJpg('new-a.jpg'), makeJpg('new-b.jpg')],
+      { count: MAX_FILES - 1, bytes: 0 },
+    )
+    expect(accepted).toHaveLength(1)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].file).toBe('new-b.jpg')
+    expect(errors[0].reason).toMatch(/up to 10 files/)
+  })
+
+  it('accepts files totaling exactly MAX_TOTAL_BYTES', async () => {
+    const perFile = MAX_TOTAL_BYTES / 3
+    const batch = [0, 1, 2].map((i) => {
+      const bytes = new Uint8Array(perFile)
+      bytes.set(PDF_BYTES)
+      return new File([bytes], `part${i}.pdf`, { type: 'application/pdf' })
+    })
+    expect(batch.reduce((sum, file) => sum + file.size, 0)).toBe(MAX_TOTAL_BYTES)
+    const { accepted, errors } = await splitReportFiles(batch)
+    expect(accepted).toHaveLength(3)
+    expect(errors).toHaveLength(0)
+  })
+
+  it('rejects files pushing the total over MAX_TOTAL_BYTES', async () => {
+    const perFile = MAX_TOTAL_BYTES / 3
+    const batch = [0, 1, 2].map((i) => {
+      const bytes = new Uint8Array(perFile)
+      bytes.set(PDF_BYTES)
+      return new File([bytes], `part${i}.pdf`, { type: 'application/pdf' })
+    })
+    batch.push(makeFile(PDF_BYTES, 'one-more.pdf', 'application/pdf'))
+    const { accepted, errors } = await splitReportFiles(batch)
+    expect(accepted).toHaveLength(3)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].file).toBe('one-more.pdf')
+    expect(errors[0].reason).toMatch(/exceed .* total/)
+  })
+
+  it('counts already-selected bytes against MAX_TOTAL_BYTES', async () => {
+    const small = makeJpg('small.jpg')
+    const { accepted, errors } = await splitReportFiles([small], {
+      count: 1,
+      bytes: MAX_TOTAL_BYTES,
+    })
+    expect(accepted).toHaveLength(0)
+    expect(errors).toHaveLength(1)
+    expect(errors[0].reason).toMatch(/exceed .* total/)
   })
 })

@@ -9,9 +9,11 @@ from google import genai
 from google.genai import types
 
 from env_loader import load_scanora_env
+from report_upload import build_source_ids
 from services.analysis_schema import (
     AnalysisResult,
     ChatAnswer,
+    CHAT_DATA_BOUNDARY_RULE,
     CHAT_SYSTEM_INSTRUCTION,
     GeminiServiceError,
     SYSTEM_INSTRUCTION,
@@ -88,16 +90,36 @@ def _humanize_genai_error(error: Exception, api_key: str) -> GeminiServiceError:
     return GeminiServiceError("upstream")
 
 
-async def analyze_report_files(files: list[tuple[bytes, str]]) -> dict:
+async def analyze_report_files(
+    files: list[tuple[bytes, str]],
+    source_ids: list[str] | None = None,
+) -> dict:
     if not files:
         raise GeminiServiceError("empty_response")
+
+    # Source IDs are assigned by the upload layer (main.py) and echoed here
+    # only as a fallback for direct callers. Original filenames are never
+    # sent to the model; the opaque IDs are the provenance identity.
+    ids = list(source_ids) if source_ids else build_source_ids(len(files))
 
     api_key, model = _settings()
 
     # Parts are sent with their exact MIME type ("image/jpeg", "image/png", or
     # "application/pdf"), so Gemini handles images and PDF documents natively.
     # Requires a Gemini model that supports document (PDF) input.
-    parts = [types.Part.from_text(text=USER_INSTRUCTION)]
+    listed = "\n".join(
+        f'- File {position}: source_id "{source_id}"'
+        for position, source_id in enumerate(ids, 1)
+    )
+    instruction = (
+        f"{USER_INSTRUCTION}\n\n"
+        f"The {len(ids)} attached files, in order, correspond to these source IDs:\n"
+        f"{listed}\n"
+        "Return exactly one report object per source ID, in the same order, "
+        "and copy each source_id verbatim into its report object. "
+        "Do not invent, omit, alter, or reuse a source ID."
+    )
+    parts = [types.Part.from_text(text=instruction)]
     for content, mime_type in files:
         parts.append(types.Part.from_bytes(data=content, mime_type=mime_type))
 
@@ -146,11 +168,11 @@ async def analyze_report_files(files: list[tuple[bytes, str]]) -> dict:
     parsed = getattr(response, "parsed", None)
     if parsed is not None:
         if hasattr(parsed, "model_dump"):
-            return validate_analysis_payload(parsed.model_dump())
+            return validate_analysis_payload(parsed.model_dump(), ids)
         if isinstance(parsed, dict):
-            return validate_analysis_payload(parsed)
+            return validate_analysis_payload(parsed, ids)
 
-    return parse_model_json(getattr(response, "text", None))
+    return parse_model_json(getattr(response, "text", None), ids)
 
 
 CHAT_GUIDE = """The JSON below is the report context for this session. It comes from the user's currently uploaded reports.
@@ -168,7 +190,7 @@ Rules:
 - You may compare reports only using information actually present. If comparison is not possible, say so.
 - If asked for a diagnosis, explain that you cannot determine a diagnosis from the report alone and that the user can discuss findings with a qualified healthcare professional.
 """
-
+CHAT_GUIDE += "\n" + CHAT_DATA_BOUNDARY_RULE + "\n"
 
 def _chat_client(api_key: str):
     return genai.Client(

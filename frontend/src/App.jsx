@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import AnalysisResultView from './components/AnalysisResultView'
+import AnalysisProgress from './components/AnalysisProgress'
 import Disclaimer from './components/Disclaimer'
 import ImagePreviewList from './components/ImagePreviewList'
 import PageFooter from './components/PageFooter'
 import PrivacyNote from './components/PrivacyNote'
-import { CHAT_STORAGE_KEY } from './components/ReportChat'
+import { CHAT_STORAGE_KEY, clearStoredChat } from './components/ReportChat'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
 import { messageFromResponse } from './errors'
 import { apiUrl } from './api'
 import { formatFileSize, splitReportFiles } from './reportFiles'
+import { canMutateFiles, createRunScope } from './runScope'
 
 const FILE_INPUT_ID = 'report-images'
 const FILE_ERROR_ID = 'report-images-error'
@@ -37,7 +39,17 @@ function App() {
     const saved = readSession()
     return saved && saved.analysis ? saved.analysis : null
   })
+  const [analysisId, setAnalysisId] = useState(() => {
+    const saved = readSession()
+    return saved && typeof saved.analysis_id === 'string'
+      ? saved.analysis_id
+      : null
+  })
   const selectedItemsRef = useRef(selectedItems)
+  const analysisScopeRef = useRef(null)
+  if (analysisScopeRef.current === null) {
+    analysisScopeRef.current = createRunScope()
+  }
   const isBusy = status === 'uploading'
 
   useEffect(() => {
@@ -46,6 +58,7 @@ function App() {
 
   useEffect(() => {
     return () => {
+      analysisScopeRef.current.cancel()
       selectedItemsRef.current.forEach((item) => {
         URL.revokeObjectURL(item.previewUrl)
       })
@@ -55,16 +68,23 @@ function App() {
   useEffect(() => {
     try {
       if (status === 'success' && analysis) {
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ analysis, status }))
+        sessionStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({ analysis, analysis_id: analysisId, status }),
+        )
       } else if (status === 'idle') {
         sessionStorage.removeItem(SESSION_KEY)
       }
     } catch {
       // Storage may be unavailable; persistence is best-effort.
     }
-  }, [analysis, status])
+  }, [analysis, analysisId, status])
 
-  function clearSelectedFiles() {
+  function clearSelectedFiles(options) {
+    // startOver() forces through; every UI affordance is blocked mid-flight.
+    if (!options?.force && !canMutateFiles(status)) {
+      return
+    }
     selectedItems.forEach((item) => {
       URL.revokeObjectURL(item.previewUrl)
     })
@@ -72,11 +92,18 @@ function App() {
   }
 
   async function addFiles(fileList) {
+    if (!canMutateFiles(status)) {
+      return
+    }
     if (!fileList || fileList.length === 0) {
       return
     }
 
-    const { accepted, errors } = await splitReportFiles(fileList)
+    const alreadySelected = {
+      count: selectedItems.length,
+      bytes: selectedItems.reduce((sum, item) => sum + item.file.size, 0),
+    }
+    const { accepted, errors } = await splitReportFiles(fileList, alreadySelected)
 
     if (accepted.length > 0) {
       const newItems = accepted.map((file) => ({
@@ -94,6 +121,9 @@ function App() {
   }
 
   function removeItem(id) {
+    if (!canMutateFiles(status)) {
+      return
+    }
     setSelectedItems((current) => {
       const item = current.find((entry) => entry.id === id)
       if (item) {
@@ -107,19 +137,25 @@ function App() {
   function clearStoredSession() {
     try {
       sessionStorage.removeItem(SESSION_KEY)
+      // Legacy un-namespaced key plus the key bound to this analysis.
       sessionStorage.removeItem(CHAT_STORAGE_KEY)
+      clearStoredChat(analysisId)
     } catch {
       // Ignore storage errors during reset.
     }
   }
 
   function startOver() {
-    clearSelectedFiles()
+    analysisScopeRef.current.cancel()
+    clearStoredSession()
+    clearSelectedFiles({ force: true })
     setAnalysis(null)
+    setAnalysisId(null)
     setStatus('idle')
     setErrorMessage('')
     setFileErrors([])
-    clearStoredSession()
+    // The upload heading is always mounted, so it can take focus immediately.
+    document.getElementById('upload-heading')?.focus()
   }
 
   async function handleAnalyze() {
@@ -138,6 +174,9 @@ function App() {
       formData.append('files', item.file)
     })
 
+    const run = analysisScopeRef.current.begin()
+    const isRunCurrent = () => analysisScopeRef.current.isCurrent(run.id)
+
     setErrorMessage('')
     setStatus('uploading')
 
@@ -145,6 +184,7 @@ function App() {
       const response = await fetch(apiUrl('/api/analyze'), {
         method: 'POST',
         body: formData,
+        signal: run.signal,
       })
 
       let data = null
@@ -152,6 +192,11 @@ function App() {
         data = await response.json()
       } catch {
         data = null
+      }
+
+      // A superseded or cancelled run must never touch state.
+      if (!isRunCurrent()) {
+        return
       }
 
       if (!response.ok) {
@@ -166,15 +211,29 @@ function App() {
         return
       }
 
-      if (!data || data.success !== true || !data.analysis) {
+      if (!data || data.success !== true || !data.analysis || typeof data.analysis_id !== 'string' || !data.analysis_id) {
         setStatus('error')
         setErrorMessage('Your reports could not be analyzed. Please try again.')
         return
       }
 
+      try {
+        // Drop any legacy unbound chat history; new chats bind to analysis_id.
+        sessionStorage.removeItem(CHAT_STORAGE_KEY)
+      } catch {
+        // Persistence is best-effort.
+      }
       setAnalysis(data.analysis)
+      setAnalysisId(data.analysis_id)
       setStatus('success')
-    } catch {
+    } catch (err) {
+      if (!isRunCurrent()) {
+        return
+      }
+      if (err && err.name === 'AbortError') {
+        // Cancelled via startOver(), which already reset state to idle.
+        return
+      }
       setStatus('error')
       setErrorMessage(
         'Scanora could not reach the server. Make sure the backend is running and try again.',
@@ -203,7 +262,7 @@ function App() {
         {/* Hero title & editorial lead */}
         <div className="mx-auto mt-6 max-w-xl text-center sm:mt-8">
           <p className="scanora-kicker">Clinical Document Assistant</p>
-          <h1 className="font-heading mx-auto mt-2 text-2xl font-semibold leading-tight text-scanora-text sm:text-[28px]">
+          <h1 id="upload-heading" tabIndex={-1} className="font-heading mx-auto mt-2 text-2xl font-semibold leading-tight text-scanora-text outline-none sm:text-[28px]">
             Understand Your Reports, Simply.
           </h1>
           {!showResults && (
@@ -215,7 +274,11 @@ function App() {
 
         {/* Main Work Area */}
         {showResults ? (
-          <AnalysisResultView analysis={analysis} onStartOver={startOver} />
+          <AnalysisResultView
+            analysis={analysis}
+            analysisId={analysisId}
+            onStartOver={startOver}
+          />
         ) : (
           <div className="mx-auto mt-5 w-full sm:mt-6">
             <UploadArea
@@ -223,6 +286,7 @@ function App() {
               errorId={FILE_ERROR_ID}
               errors={activeErrors}
               isDragging={isDragging}
+              disabled={isBusy}
               onDragOver={(event) => {
                 event.preventDefault()
                 setIsDragging(true)
@@ -239,7 +303,8 @@ function App() {
             <ImagePreviewList
               items={selectedItems}
               onRemove={removeItem}
-              onClearAll={clearSelectedFiles}
+              onClearAll={() => clearSelectedFiles()}
+              disabled={isBusy}
             />
 
             <button
@@ -270,6 +335,8 @@ function App() {
                 </>
               )}
             </button>
+
+            {isBusy && <AnalysisProgress />}
 
             <PrivacyNote />
           </div>

@@ -24,12 +24,13 @@ def client():
 def patched_analyze(monkeypatch):
     calls = []
 
-    async def fake_analyze_report_files(files):
+    async def fake_analyze_report_files(files, source_ids=None):
         calls.append(files)
         return {
             "overall_summary": "Fixture summary",
             "reports": [
                 {
+                    "source_id": "source-1",
                     "report_name": "Test Report",
                     "summary": "Fixture summary",
                     "key_findings": ["Fixture finding"],

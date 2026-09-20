@@ -1,4 +1,4 @@
-function ImagePreview({ item, onRemove }) {
+function ImagePreview({ item, onRemove, disabled }) {
   const isPdf = item.file.type === 'application/pdf'
 
   return (
@@ -43,9 +43,10 @@ function ImagePreview({ item, onRemove }) {
       <button
         type="button"
         onClick={() => onRemove(item.id)}
+        disabled={disabled}
         aria-label={`Remove ${item.file.name}`}
         title={`Remove ${item.file.name}`}
-        className="scanora-focus-ring inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-colors duration-180 hover:bg-scanora-surface-muted hover:text-scanora-error"
+        className="scanora-focus-ring inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-colors duration-180 hover:bg-scanora-surface-muted hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
       >
         <svg
           className="h-5 w-5"

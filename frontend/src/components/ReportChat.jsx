@@ -1,12 +1,32 @@
-import { useEffect, useState } from 'react'
-import { messageFromResponse } from '../errors'
+import { useEffect, useRef, useState } from 'react'
+import { CHAT_EXPIRED_DETAIL, messageFromResponse } from '../errors'
 import { apiUrl } from '../api'
+import { createRunScope } from '../runScope'
 
 export const CHAT_STORAGE_KEY = 'scanora:chat'
 
-function loadStoredMessages() {
+export function chatStorageKey(analysisId) {
+  if (analysisId && typeof analysisId === 'string') {
+    return `${CHAT_STORAGE_KEY}:${analysisId}`
+  }
+  return CHAT_STORAGE_KEY
+}
+
+export function clearStoredChat(analysisId) {
   try {
-    const raw = sessionStorage.getItem(CHAT_STORAGE_KEY)
+    // Legacy un-namespaced key (pre-provenance) plus the bound key.
+    sessionStorage.removeItem(CHAT_STORAGE_KEY)
+    if (analysisId && typeof analysisId === 'string') {
+      sessionStorage.removeItem(chatStorageKey(analysisId))
+    }
+  } catch {
+    // Ignore storage errors during reset.
+  }
+}
+
+function loadStoredMessages(storageKey) {
+  try {
+    const raw = sessionStorage.getItem(storageKey)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed)) {
@@ -24,20 +44,58 @@ function loadStoredMessages() {
   return []
 }
 
-function ReportChat({ reportContext }) {
-  const [messages, setMessages] = useState(loadStoredMessages)
+function ReportChat({ analysisId, prefillRequest }) {
+  const storageKey = chatStorageKey(analysisId)
+  const [messages, setMessages] = useState(() => loadStoredMessages(storageKey))
   const [draft, setDraft] = useState('')
   const [isSending, setIsSending] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [failedMessage, setFailedMessage] = useState('')
+  const [isExpired, setIsExpired] = useState(false)
+  const composerRef = useRef(null)
+  const appliedPrefillNonce = useRef(null)
+  const sendScopeRef = useRef(null)
+  if (sendScopeRef.current === null) {
+    sendScopeRef.current = createRunScope()
+  }
 
   useEffect(() => {
     try {
-      sessionStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages))
+      sessionStorage.setItem(storageKey, JSON.stringify(messages))
     } catch {
       // Persistence is best-effort.
     }
-  }, [messages])
+  }, [messages, storageKey])
+
+  // Reset (or a new analysis identity, via parent key) cancels the send.
+  useEffect(() => {
+    const scope = sendScopeRef.current
+    return () => {
+      scope.cancel()
+    }
+  }, [])
+
+  // "Ask about this" prefill: fills the composer without sending anything.
+  // Applied once per request nonce so re-renders never clobber a typed
+  // draft, and message history / send state are left untouched. A draft the
+  // user already typed is preserved; the composer is still focused.
+  useEffect(() => {
+    if (!prefillRequest || appliedPrefillNonce.current === prefillRequest.nonce) {
+      return
+    }
+    appliedPrefillNonce.current = prefillRequest.nonce
+    setDraft((current) => (current.trim() === '' ? prefillRequest.text : current))
+    const node = composerRef.current
+    if (node) {
+      node.focus({ preventScroll: true })
+      if (typeof node.scrollIntoView === 'function') {
+        const reduceMotion =
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches
+        node.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' })
+      }
+    }
+  }, [prefillRequest])
 
   function markUserMessage(text, updates) {
     setMessages((current) =>
@@ -74,10 +132,20 @@ function ReportChat({ reportContext }) {
       return
     }
 
+    if (!analysisId) {
+      setErrorMessage(
+        'This analysis is from before a recent update. Please analyze your reports again to enable chat.',
+      )
+      return
+    }
+
     const history = messages.map((item) => ({
       role: item.role,
       content: item.text,
     }))
+
+    const run = sendScopeRef.current.begin()
+    const isRunCurrent = () => sendScopeRef.current.isCurrent(run.id)
 
     setErrorMessage('')
     setIsSending(true)
@@ -92,10 +160,11 @@ function ReportChat({ reportContext }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          report_context: reportContext,
+          analysis_id: analysisId,
           messages: history,
           message: text,
         }),
+        signal: run.signal,
       })
 
       let data = null
@@ -105,12 +174,22 @@ function ReportChat({ reportContext }) {
         data = null
       }
 
+      // A superseded or cancelled send must never touch state.
+      if (!isRunCurrent()) {
+        return
+      }
+
       if (!response.ok) {
         if (!override) {
           setDraft(text)
         }
         markUserMessage(text, { failed: true, sending: false })
         setFailedMessage(text)
+        if (data?.detail === CHAT_EXPIRED_DETAIL) {
+          // The analysis identity expired: re-analysis is the only recovery,
+          // so lock the composer with inline guidance instead of failing sends.
+          setIsExpired(true)
+        }
         setErrorMessage(
           messageFromResponse(
             response,
@@ -144,7 +223,14 @@ function ReportChat({ reportContext }) {
           { id: crypto.randomUUID(), role: 'assistant', text: answer },
         ]
       })
-    } catch {
+    } catch (err) {
+      if (!isRunCurrent()) {
+        return
+      }
+      if (err && err.name === 'AbortError') {
+        // Cancelled via reset/unmount; that flow already owns the state.
+        return
+      }
       if (!override) {
         setDraft(text)
       }
@@ -154,7 +240,9 @@ function ReportChat({ reportContext }) {
         'Scanora could not reach the server. Make sure the backend is running and try again.',
       )
     } finally {
-      setIsSending(false)
+      if (isRunCurrent()) {
+        setIsSending(false)
+      }
     }
   }
 
@@ -181,6 +269,18 @@ function ReportChat({ reportContext }) {
         <p className="mt-1 max-w-xl text-xs leading-relaxed text-scanora-muted sm:text-sm">
           Ask questions regarding any tests or notes visible above. Scanora explains report contents but does not diagnose or recommend treatments.
         </p>
+
+        {!analysisId && (
+          <p className="mt-3 text-xs leading-relaxed text-scanora-muted sm:text-sm">
+            Chat is unavailable for analyses from before this update. Analyze your reports again to ask questions.
+          </p>
+        )}
+
+        {isExpired && (
+          <p className="mt-3 text-xs leading-relaxed text-scanora-muted sm:text-sm">
+            This analysis has expired. Analyze your reports again to keep asking questions.
+          </p>
+        )}
 
         {messages.length > 0 && (
           <ul className="mt-4 space-y-3" aria-live="polite">
@@ -219,7 +319,7 @@ function ReportChat({ reportContext }) {
         {errorMessage && (
           <div role="alert" className="scanora-error mt-3 px-3 py-2 text-xs leading-relaxed">
             <p className="break-words">{errorMessage}</p>
-            {failedMessage && (
+            {failedMessage && !isExpired && (
               <button
                 type="button"
                 onClick={() => sendMessage(failedMessage)}
@@ -238,19 +338,21 @@ function ReportChat({ reportContext }) {
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-end">
           <textarea
             id="report-chat-input"
+            ref={composerRef}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="e.g. What does out-of-range Hematocrit mean?"
             rows={2}
-            disabled={isSending}
+            disabled={isSending || !analysisId || isExpired}
+            aria-describedby="report-chat-hint"
             className="scanora-focus-ring min-h-[48px] w-full resize-y rounded-lg border border-scanora-border bg-scanora-surface px-3 py-2 text-xs text-scanora-text placeholder:text-scanora-muted disabled:opacity-60 sm:text-sm"
           />
 
           <button
             type="button"
             onClick={() => sendMessage()}
-            disabled={isSending || draft.trim() === ''}
+            disabled={isSending || draft.trim() === '' || !analysisId || isExpired}
             className="scanora-button-primary scanora-focus-ring inline-flex h-[48px] shrink-0 cursor-pointer items-center justify-center gap-2 sm:w-auto"
           >
             <span>Ask</span>
@@ -266,6 +368,9 @@ function ReportChat({ reportContext }) {
             </svg>
           </button>
         </div>
+        <p id="report-chat-hint" className="mt-2 text-[11px] leading-relaxed text-scanora-faint sm:text-xs">
+          Press Enter to send, Shift + Enter for a new line.
+        </p>
       </div>
     </section>
   )

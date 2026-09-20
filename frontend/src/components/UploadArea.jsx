@@ -1,16 +1,18 @@
-import { MAX_FILE_BYTES } from '../reportFiles'
+import { MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES } from '../reportFiles'
 
 function UploadArea({
   inputId,
   errorId,
   errors,
   isDragging,
+  disabled,
   onDragOver,
   onDragLeave,
   onDrop,
   onFilesChosen,
 }) {
   const maxSizeLabel = `${MAX_FILE_BYTES / (1024 * 1024)} MB`
+  const totalSizeLabel = `${MAX_TOTAL_BYTES / (1024 * 1024)} MB`
   const hasErrors = errors && errors.length > 0
 
   return (
@@ -20,10 +22,13 @@ function UploadArea({
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
-        className={`group relative flex min-h-[176px] cursor-pointer flex-col items-center justify-center rounded-lg border px-5 py-6 text-center transition-all duration-180 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-scanora-primary sm:min-h-[190px] sm:py-7 ${
-          isDragging
-            ? 'border-2 border-dashed border-scanora-primary bg-scanora-surface-muted shadow-xs'
-            : 'border-dashed border-scanora-border bg-scanora-surface hover:border-scanora-border-strong hover:bg-scanora-surface-subtle'
+        aria-disabled={disabled ? true : undefined}
+        className={`group relative flex min-h-[176px] flex-col items-center justify-center rounded-lg border px-5 py-6 text-center transition-all duration-180 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-scanora-primary sm:min-h-[190px] sm:py-7 ${
+          disabled
+            ? 'cursor-default border-dashed border-scanora-border bg-scanora-surface-muted opacity-60'
+            : isDragging
+              ? 'cursor-pointer border-2 border-dashed border-scanora-primary bg-scanora-surface-muted shadow-xs'
+              : 'cursor-pointer border-dashed border-scanora-border bg-scanora-surface hover:border-scanora-border-strong hover:bg-scanora-surface-subtle'
         }`}
       >
         <input
@@ -31,6 +36,7 @@ function UploadArea({
           type="file"
           accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
           multiple
+          disabled={disabled}
           className="sr-only"
           aria-invalid={hasErrors ? true : undefined}
           aria-describedby={`${inputId}-hint ${errorId}`}
@@ -67,7 +73,11 @@ function UploadArea({
         </div>
 
         <span className="font-heading text-base font-semibold text-scanora-text sm:text-[17px]">
-          {isDragging ? 'Drop report images or PDFs to attach' : 'Drop report images or PDFs here'}
+          {disabled
+            ? 'Analysis in progress…'
+            : isDragging
+              ? 'Drop report images or PDFs to attach'
+              : 'Drop report images or PDFs here'}
         </span>
 
         <span className="mt-1 text-xs text-scanora-muted sm:text-sm">
@@ -81,7 +91,7 @@ function UploadArea({
           id={`${inputId}-hint`}
           className="mt-3 text-[11px] leading-normal text-scanora-faint sm:text-xs"
         >
-          JPG, JPEG, PNG, or PDF • Up to {maxSizeLabel} per file • Multiple files supported
+          JPG, JPEG, PNG, or PDF • Up to {maxSizeLabel} per file • Up to {MAX_FILES} files ({totalSizeLabel} total)
         </span>
       </label>
 

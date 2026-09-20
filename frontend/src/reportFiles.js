@@ -1,4 +1,6 @@
 export const MAX_FILE_BYTES = 10 * 1024 * 1024
+export const MAX_FILES = 10
+export const MAX_TOTAL_BYTES = 30 * 1024 * 1024
 export const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.pdf']
 
 const JPEG_MAGIC = [0xff, 0xd8, 0xff]
@@ -88,9 +90,15 @@ function magicMismatchReason(extension) {
   return 'This file is not a valid JPG, JPEG, or PNG image.'
 }
 
-export async function splitReportFiles(fileList) {
+export async function splitReportFiles(
+  fileList,
+  alreadySelected = { count: 0, bytes: 0 },
+) {
   const accepted = []
   const errors = []
+  const baseCount = alreadySelected?.count ?? 0
+  const baseBytes = alreadySelected?.bytes ?? 0
+  let acceptedBytes = 0
 
   for (const file of fileList) {
     const extension = fileExtension(file.name)
@@ -110,6 +118,22 @@ export async function splitReportFiles(fileList) {
       continue
     }
 
+    if (baseCount + accepted.length + 1 > MAX_FILES) {
+      errors.push({
+        file: file.name,
+        reason: `You can analyze up to ${MAX_FILES} files at a time.`,
+      })
+      continue
+    }
+
+    if (baseBytes + acceptedBytes + file.size > MAX_TOTAL_BYTES) {
+      errors.push({
+        file: file.name,
+        reason: `The selected files exceed ${MAX_TOTAL_BYTES / (1024 * 1024)} MB in total.`,
+      })
+      continue
+    }
+
     const signatureOk = await hasMatchingSignature(file, extension)
     if (!signatureOk) {
       errors.push({ file: file.name, reason: magicMismatchReason(extension) })
@@ -117,6 +141,7 @@ export async function splitReportFiles(fileList) {
     }
 
     accepted.push(file)
+    acceptedBytes += file.size
   }
 
   return { accepted, errors }
