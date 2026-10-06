@@ -46,7 +46,23 @@ def test_existing_analysis_safety_rules_intact():
 
 
 def test_existing_chat_safety_rules_intact():
-    assert "Do not diagnose" in CHAT_SYSTEM_INSTRUCTION
-    assert "Answer only from that context" in CHAT_GUIDE
+    assert "Never diagnose the user" in CHAT_SYSTEM_INSTRUCTION
     assert "Do not invent values" in CHAT_GUIDE
     assert "Do not pretend to be a doctor" in CHAT_GUIDE
+
+
+def test_chat_allows_general_education_with_clear_report_boundary():
+    assert "general educational medical questions" in CHAT_SYSTEM_INSTRUCTION
+    assert "general educational medical information" in CHAT_GUIDE
+    assert "Clearly distinguish what the report states" in CHAT_GUIDE
+    assert "not confirmed in this user's case" in CHAT_GUIDE
+    assert "possible causes include" in CHAT_GUIDE
+    assert "can be associated with" in CHAT_GUIDE
+    assert "may occur with" in CHAT_GUIDE
+
+
+def test_chat_prompt_keeps_diagnosis_and_treatment_prohibitions():
+    assert "Never diagnose the user" in CHAT_SYSTEM_INSTRUCTION
+    assert "determine a cause from the report alone" in CHAT_SYSTEM_INSTRUCTION
+    assert "recommend specific treatment" in CHAT_SYSTEM_INSTRUCTION
+    assert "Do not present general possibilities as confirmed facts" in CHAT_GUIDE

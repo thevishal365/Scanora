@@ -49,14 +49,14 @@ function UploadArea({
         {/* Clinical Document Lens Glyphs */}
         <div
           aria-hidden="true"
-          className={`mb-3 flex h-10 w-10 items-center justify-center rounded-lg transition-colors duration-180 sm:h-11 sm:w-11 ${
+          className={`mb-3 flex h-12 w-12 items-center justify-center rounded-lg transition-all duration-180 sm:h-13 sm:w-13 ${
             isDragging
-              ? 'bg-scanora-primary text-white'
-              : 'bg-scanora-surface-muted text-scanora-primary group-hover:bg-scanora-brand-soft'
+              ? 'bg-scanora-primary text-white scale-105'
+              : 'bg-scanora-surface-muted text-scanora-primary group-hover:bg-scanora-brand-soft group-hover:scale-105'
           }`}
         >
           <svg
-            className="h-5 w-5 sm:h-5 sm:w-5"
+            className="h-6 w-6 sm:h-6 sm:w-6"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="1.75"

@@ -24,6 +24,8 @@ HUMAN_ERRORS = {
     "malformed": "The upload could not be processed. Please try again.",
     "not_configured": "Scanora is not configured to analyze reports yet.",
     "auth": "Scanora could not connect to the analysis service. Please try again later.",
+    "unavailable": "The Gemini service is temporarily unavailable due to high demand. Please try again shortly.",
+    "malformed_request": "The request could not be processed by the analysis service. Please check the input and try again.",
     "timeout": "Analyzing your reports took too long. Please try again.",
     "invalid_response": "The report could not be interpreted reliably. Please try again with a clearer file.",
     "empty_response": "No analysis was returned for these reports. Please try again.",

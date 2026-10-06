@@ -33,7 +33,7 @@ async function sendMessage(text) {
     screen.getByPlaceholderText(/out-of-range hematocrit/i),
     { target: { value: text } },
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Send question' }))
   await screen.findByText(text)
 }
 
@@ -53,6 +53,7 @@ describe('chat send concurrency', () => {
     await sendMessage('What is this?')
     pendingRequests[0].resolve(answerResponse('It is explained.'))
     await screen.findByText('It is explained.')
+    expect(screen.getByText(/Educational information only/)).toBeTruthy()
   })
 
   it('a late response after reset cannot update the chat', async () => {
@@ -139,6 +140,32 @@ describe('composer prefill, expiry, and hints', () => {
     expect(composer().value).toBe('Prefilled question?')
   })
 
+  it('shows finding-specific suggested questions that only fill the composer', () => {
+    render(
+      <ReportChat
+        analysisId="a1"
+        prefillRequest={{
+          text: 'Can you explain my RBC result?',
+          finding: {
+            name: 'RBC',
+            value: '4.17',
+            unit: 'million/cmm',
+            reference_range: '4.7 - 6.2',
+          },
+          nonce: 1,
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'What is RBC?' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Why might my RBC be low?' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Why might my RBC be low?' }))
+    expect(composer().value).toBe(
+      'About my RBC result; value 4.17 million/cmm; reference range 4.7 - 6.2: Why might my RBC be low?',
+    )
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
   it('disables the composer with guidance when the analysis expired', async () => {
     render(<ReportChat analysisId="a1" />)
     await sendMessage('Hello?')
@@ -149,7 +176,7 @@ describe('composer prefill, expiry, and hints', () => {
     })
     await screen.findByText('This analysis has expired. Analyze your reports again to keep asking questions.')
     expect(composer().disabled).toBe(true)
-    expect(screen.getByRole('button', { name: 'Ask' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Send question' }).disabled).toBe(true)
     expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
   })
 

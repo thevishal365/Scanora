@@ -2,20 +2,24 @@
 
 > A minimal AI-powered tool for understanding medical report images.
 
-Scanora lets users upload one or multiple medical report images and uses Google Gemini to identify attention-worthy findings, explain them simply, and answer questions about the uploaded reports.
+Scanora lets users upload one or multiple medical report images and uses Google Gemini to analyze them. The frontend surfaces attention-worthy findings using the existing report-value and reference-range logic, while chat explains the report and answers general educational questions.
 
 ## Features
 
 - Multiple medical report file uploads (up to 10 files and 30 MB total, 10 MB per file)
 - JPG, JPEG, PNG, and PDF support
 - Multiple files per upload
-- Direct Gemini image analysis
+- Direct Gemini analysis of uploaded images and PDFs
 - Staged analysis progress without percentages
-- Results overview: reviewed, need attention, no attention flag, unable to evaluate
-- Attention-worthy findings only
-- Detailed attention findings with per-finding "Ask about this" chat prompts
-- Reference-range based filtering when ranges are present in the report
-- Report-specific AI chat
+- Attention-first results with finding values, units, available reference ranges, and relevant context
+- Normal/within-range findings are not shown individually in the primary results view; the former results overview/statistics dashboard is no longer the main UI
+- Finding-specific "Ask about this" prompts and contextual suggested questions
+- Suggested questions fill the composer but are not sent until the user chooses to send
+- Frontend attention classification based on available reference ranges and explicit report flags
+- Report chat for explaining findings and answering general educational medical questions
+- Clear distinction between report-supported facts, general education, and possible explanations not confirmed for the user
+- Concise medical safety reminder with every assistant answer
+- Calm Clinical Editorial visual design with responsive layouts, shared 48px-minimum action controls, and a circular 48px mobile chat-send button
 - Clear, actionable error messages
 - Session-only report and chat context
 - Start-over reset flow with session recovery through sessionStorage
@@ -32,13 +36,17 @@ Medical report images
         ↓
 FastAPI backend
         ↓
-Google Gemini image analysis
+Google Gemini structured analysis
+        ↓
+Frontend attention classification (`needsAttention.js`)
         ↓
 Attention-worthy findings
         ↓
 Scanora result screen
         ↓
-Report-specific chat
+Finding-specific questions and report chat
+        ↓
+Report explanations and general medical education
 ```
 
 ## Tech Stack
@@ -76,7 +84,11 @@ Scanora/
 │   │   └── favicon.svg
 │   ├── src/
 │   │   ├── components/
+│   │   │   ├── AnalysisResultView.jsx
+│   │   │   └── ReportChat.jsx
 │   │   ├── App.jsx
+│   │   ├── askAboutFinding.js
+│   │   ├── needsAttention.js
 │   │   └── index.css
 │   ├── package.json
 │   └── vite.config.js
@@ -94,10 +106,10 @@ The backend handles file uploads, Gemini analysis, report-specific chat, validat
 ### Main Services
 
 - `gemini_service.py`
-  Handles Google Gemini image analysis and report-grounded chat.
+  Handles Google Gemini image analysis, report and general educational chat, and transient-error retries.
 
 - `analysis_schema.py`
-  Defines and validates the structured analysis response.
+  Defines and validates the structured analysis response and chat safety instructions.
 
 - `report_upload.py`
   Handles report-image validation and upload-related errors.
@@ -119,19 +131,25 @@ GET  /api/health
 
 Accepts one or multiple JPG/JPEG/PNG/PDF files (up to 10 MB each, up to 10 files and 30 MB total per request) and sends them to Gemini for direct analysis.
 
-The result is filtered to show only findings that are supported by the uploaded report, such as values outside a reference range or findings explicitly flagged by the report.
+Gemini returns a structured analysis of information in the uploaded report, including reported values and explicit flags where available.
+
+The backend returns the structured report analysis and preserves each report's source identity. The frontend's existing `needsAttention.js` logic classifies values using the available reference range or explicit report flags. The main results view displays only attention-worthy findings; normal/within-range values and overview statistics are not the primary results experience.
 
 Expensive endpoints are rate-limited per client IP (10 analyses and 30 chat messages per 60 seconds); excess requests receive HTTP 429. These are in-process limits for a single backend instance — use gateway-level limiting if replicas are added.
+
+Transient Gemini errors are retried at most once, so a single analysis or chat action makes at most two Gemini requests. Provider HTTP 503 / `UNAVAILABLE` errors are reported as temporary service unavailability. Quota/rate-limit, authentication, malformed-request, and invalid-model-response errors have distinct handling.
 
 ### Report Chat
 
 `POST /api/chat`
 
-Provides a chat experience about the current uploaded report context.
+Provides a chat experience about the current uploaded report context and general educational medical information. "Ask about this" includes the finding's name, value, unit, and available reference range in the composer; contextual suggestions do the same. Neither the prefilled question nor a suggested question is sent automatically.
+
+Chat distinguishes facts supported by the uploaded report from general education and possible explanations that are not confirmed for the user. It must not diagnose, determine a cause with certainty, prescribe treatment, or present possibilities as confirmed facts. Every assistant answer is accompanied by a concise medical safety reminder.
 
 Chat requests carry a short-lived server-signed analysis identity instead of client-supplied report data.
 
-The chat is session-only and is not stored permanently.
+The existing report provenance, signed analysis identity, chat request, and session-storage architecture remain in place. Chat is session-only and is not stored permanently.
 
 ## Configuration
 
@@ -182,15 +200,17 @@ After analysis:
 
 Scanora is designed to help users understand and summarize information shown in medical reports.
 
-It does not provide a medical diagnosis or treatment.
+It provides educational explanations, not a medical diagnosis or treatment recommendation. Assistant answers include a reminder to discuss results with a qualified healthcare professional.
 
 The AI should not:
 
 - invent report values or reference ranges
 - diagnose medical conditions
+- determine the cause of an abnormal result from the report alone
 - prescribe medication
 - recommend changing medication
-- present unsupported findings as facts
+- present general possibilities as confirmed facts or overstate certainty
+- confuse report-supported facts with general educational information or unconfirmed possibilities
 
 ## Development
 
@@ -264,7 +284,7 @@ Temporary processing data is cleaned up after requests where applicable.
 python -m pytest backend/tests/ -v
 ```
 
-Backend tests cover upload validation (extensions, MIME types, magic bytes, per-file/total/count limits), the `/api/analyze` endpoint, mixed JPG/PNG/PDF requests, rate limiting, chat provenance and error mapping, tolerant analysis-schema validation, source provenance, and prompt-boundary configuration. A Gemini PDF integration test is included and skipped unless `GEMINI_API_KEY` and `GEMINI_MODEL` are set (run it explicitly with the integration marker).
+Backend tests cover upload validation (extensions, MIME types, magic bytes, per-file/total/count limits), the `/api/analyze` endpoint, mixed JPG/PNG/PDF requests, rate limiting, chat provenance and error mapping, tolerant analysis-schema validation, source provenance, retry limits, and prompt-boundary configuration. A Gemini PDF integration test is marked `integration` and skipped when `GEMINI_API_KEY` or `GEMINI_MODEL` is unset. When both are configured, the full backend test command runs it and makes a Gemini request; select it explicitly with `-m integration` when desired.
 
 ### Frontend
 
@@ -273,7 +293,15 @@ cd frontend
 npm test
 ```
 
-Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections, as well as reference-range and qualitative result parsing, result partitioning and provenance grouping, analysis/chat concurrency guards, staged progress, results-overview counts, chat storage binding, and error-message handling.
+Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections, as well as reference-range and qualitative result parsing, attention-only results and the no-attention state, finding-specific chat prefill and suggestions, manual sending, per-answer safety reminders, provenance grouping, analysis/chat concurrency guards, staged progress, chat storage binding, and error-message handling.
+
+### Frontend Lint and Production Build
+
+```powershell
+cd frontend
+npm run lint
+npm run build
+```
 
 ## Live Application
 

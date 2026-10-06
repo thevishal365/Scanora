@@ -262,7 +262,7 @@ function App() {
         {/* Hero title & editorial lead */}
         <div className="mx-auto mt-6 max-w-xl text-center sm:mt-8">
           <p className="scanora-kicker">Clinical Document Assistant</p>
-          <h1 id="upload-heading" tabIndex={-1} className="font-heading mx-auto mt-2 text-2xl font-semibold leading-tight text-scanora-text outline-none sm:text-[28px]">
+          <h1 id="upload-heading" tabIndex={-1} className="font-heading mx-auto mt-2 text-[28px] font-semibold leading-tight text-scanora-text outline-none sm:text-[32px]">
             Understand Your Reports, Simply.
           </h1>
           {!showResults && (

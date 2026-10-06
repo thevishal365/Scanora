@@ -15,7 +15,7 @@
   --color-scanora-ink: #17324d;
   --color-scanora-text: #17324d;
   --color-scanora-muted: #557080;
-  --color-scanora-faint: #7e96a6;
+  --color-scanora-faint: #5c7482;
 
   --color-scanora-border: #d6e3e0;
   --color-scanora-border-subtle: #e4ede9;
@@ -103,6 +103,20 @@ label {
   border-radius: 8px;
   background: var(--color-scanora-surface);
   box-shadow: 0 1px 2px rgba(23, 50, 77, 0.02);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.scanora-panel-interactive {
+  border: 1px solid var(--color-scanora-border);
+  border-radius: 8px;
+  background: var(--color-scanora-surface);
+  box-shadow: 0 1px 2px rgba(23, 50, 77, 0.02);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 150ms ease;
+}
+
+.scanora-panel-interactive:hover {
+  border-color: var(--color-scanora-border-strong);
+  box-shadow: 0 2px 8px rgba(23, 50, 77, 0.05);
 }
 
 .scanora-panel-muted {
@@ -131,15 +145,15 @@ label {
 /* Action Controls (Buttons) */
 .scanora-button-primary,
 .scanora-button-secondary {
-  min-height: 46px;
+  min-height: 48px;
   border-radius: 8px;
-  padding: 11px 18px;
+  padding: 12px 20px;
   font-family: var(--font-heading);
   font-size: 0.9375rem;
   font-weight: 600;
   line-height: 1.2;
   transition: background-color 180ms ease, border-color 180ms ease,
-    color 180ms ease, opacity 180ms ease, box-shadow 180ms ease;
+    color 180ms ease, opacity 180ms ease, box-shadow 180ms ease, transform 150ms ease;
 }
 
 .scanora-button-primary {
@@ -150,12 +164,33 @@ label {
 
 .scanora-button-primary:hover:not(:disabled) {
   background: var(--color-scanora-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(8, 127, 140, 0.15);
 }
 
 .scanora-button-primary:disabled,
 .scanora-button-secondary:disabled {
   cursor: not-allowed;
   opacity: 0.60;
+}
+
+.scanora-chat-send {
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: 9999px;
+}
+
+@media (min-width: 640px) {
+  .scanora-chat-send {
+    width: auto;
+    min-width: 0;
+    padding: 12px 20px;
+    border-radius: 8px;
+  }
 }
 
 .scanora-button-secondary {
@@ -168,6 +203,8 @@ label {
   border-color: var(--color-scanora-brand);
   background: var(--color-scanora-surface-muted);
   color: var(--color-scanora-brand-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(23, 50, 77, 0.06);
 }
 
 /* Status Callouts */

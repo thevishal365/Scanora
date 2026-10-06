@@ -4,7 +4,7 @@ export const STATUS_MESSAGES = {
   429: 'Too many requests. Please wait a moment and try again.',
   500: 'Your reports could not be analyzed. Please try again.',
   502: 'The analysis service could not be reached. Please try again.',
-  503: 'Scanora is not configured to analyze reports yet.',
+  503: 'The analysis service is temporarily unavailable. Please try again in a little while.',
   504: 'Analyzing your reports took too long. Please try again.',
 }
 

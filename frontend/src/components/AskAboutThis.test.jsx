@@ -68,7 +68,7 @@ describe('"Ask about this" from findings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this Hemoglobin' }))
 
     expect(composer().value).toBe(
-      'Can you explain this Hemoglobin result (18.1 g/dL) and the reference range shown in the report?',
+      'Can you explain my Hemoglobin result; value 18.1 g/dL; reference range 12.0 - 16.0?',
     )
     expect(document.activeElement).toBe(composer())
     // Nothing is sent automatically.
@@ -80,7 +80,7 @@ describe('"Ask about this" from findings', () => {
     renderView()
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this HBsAg' }))
     expect(composer().value).toBe(
-      'Can you explain this HBsAg result (Reactive) based on what is shown in the report?',
+      'Can you explain my HBsAg result; value Reactive?',
     )
     expect(fetch).not.toHaveBeenCalled()
   })
@@ -90,7 +90,7 @@ describe('"Ask about this" from findings', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this Calcium' }))
     const question = composer().value
     expect(question).toBe(
-      'Can you explain this Calcium result (9.5 H mg/dL) based on what is shown in the report?',
+      'Can you explain my Calcium result; value 9.5 H mg/dL?',
     )
     expect(question).not.toMatch(/reference range/i)
   })
@@ -98,23 +98,23 @@ describe('"Ask about this" from findings', () => {
   it('gives each finding its own correct prompt', () => {
     renderView()
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this Hemoglobin' }))
-    expect(composer().value).toMatch(/Hemoglobin result \(18\.1 g\/dL\)/)
+    expect(composer().value).toMatch(/Hemoglobin result; value 18\.1 g\/dL/)
     // A cleared composer accepts the next finding's prompt.
     fireEvent.change(composer(), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this HBsAg' }))
-    expect(composer().value).toMatch(/HBsAg result \(Reactive\)/)
+    expect(composer().value).toMatch(/HBsAg result; value Reactive/)
   })
 
   it('submits the prefilled question under the current analysis identity', () => {
     renderView()
     fireEvent.click(screen.getByRole('button', { name: 'Ask about this Hemoglobin' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Ask' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send question' }))
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const body = JSON.parse(fetch.mock.calls[0][1].body)
     expect(body.analysis_id).toBe('tid')
     expect(body.message).toBe(
-      'Can you explain this Hemoglobin result (18.1 g/dL) and the reference range shown in the report?',
+      'Can you explain my Hemoglobin result; value 18.1 g/dL; reference range 12.0 - 16.0?',
     )
   })
 

@@ -22,7 +22,14 @@ function analysisResponse(id, summary) {
             report_name: 'CBC',
             summary: 'Report summary',
             key_findings: [],
-            important_values: [],
+            important_values: [
+              {
+                name: `Finding ${id}`,
+                value: '18',
+                unit: 'g/dL',
+                reference_range: '12 - 16',
+              },
+            ],
             simple_explanation: 'Plain explanation',
           },
         ],
@@ -105,8 +112,8 @@ describe('analysis concurrency guards', () => {
 
     // The in-flight request still completes normally.
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Report Findings')
-    await screen.findByText('Summary One')
+    await screen.findByRole('heading', { name: /findings that may need your attention/i })
+    await screen.findByText('Finding id-1')
   })
 
   it('aborts the request on unmount and ignores the late success', async () => {
@@ -125,14 +132,16 @@ describe('analysis concurrency guards', () => {
     const second = render(<App />)
     expect(second.container.querySelector('input[type="file"]')).toBeTruthy()
     expect(screen.getByRole('button', { name: /analyze reports/i }).disabled).toBe(false)
-    expect(screen.queryByText('Report Findings')).toBeNull()
+    expect(
+      screen.queryByRole('heading', { name: /findings that may need your attention/i }),
+    ).toBeNull()
     expect(screen.queryByText('Late Summary')).toBeNull()
 
     // The app is not stuck: a fresh analysis works.
     await addFile(second.container, 'fresh.jpg')
     clickAnalyze()
     pendingRequests[1].resolve(analysisResponse('id-fresh', 'Fresh Summary'))
-    await screen.findByText('Fresh Summary')
+    await screen.findByText('Finding id-fresh')
   })
 
   it('ignores a late error after unmount', async () => {
@@ -159,7 +168,7 @@ describe('analysis concurrency guards', () => {
     // Retry with a fresh run: previous failure cannot overwrite it.
     clickAnalyze()
     pendingRequests[1].resolve(analysisResponse('id-2', 'Recovered Summary'))
-    await screen.findByText('Recovered Summary')
+    await screen.findByText('Finding id-2')
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -168,14 +177,14 @@ describe('analysis concurrency guards', () => {
     await addFile(container, 'first.jpg')
     clickAnalyze()
     pendingRequests[0].resolve(analysisResponse('id-a', 'Summary Alpha'))
-    await screen.findByText('Summary Alpha')
+    await screen.findByText('Finding id-a')
 
     fireEvent.click(screen.getByRole('button', { name: /analyze more reports/i }))
     await addFile(container, 'second.jpg')
     clickAnalyze()
     pendingRequests[1].resolve(analysisResponse('id-b', 'Summary Beta'))
-    await screen.findByText('Summary Beta')
-    expect(screen.queryByText('Summary Alpha')).toBeNull()
+    await screen.findByText('Finding id-b')
+    expect(screen.queryByText('Finding id-a')).toBeNull()
   })
 })
 
@@ -191,7 +200,7 @@ describe('analysis loading state', () => {
     expect(screen.getByText('Reading reports')).toBeTruthy()
 
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Report Findings')
+    await screen.findByRole('heading', { name: /findings that may need your attention/i })
   })
 
   it('hides loading when the analysis succeeds', async () => {
@@ -201,7 +210,7 @@ describe('analysis loading state', () => {
     expect(screen.getByRole('status')).toBeTruthy()
 
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Summary One')
+    await screen.findByText('Finding id-1')
     expect(screen.queryByRole('status')).toBeNull()
   })
 
@@ -240,7 +249,9 @@ describe('analysis loading state', () => {
     const second = render(<App />)
     expect(second.container.querySelector('input[type="file"]')).toBeTruthy()
     expect(screen.queryByRole('status')).toBeNull()
-    expect(screen.queryByText('Report Findings')).toBeNull()
+    expect(
+      screen.queryByRole('heading', { name: /findings that may need your attention/i }),
+    ).toBeNull()
     expect(screen.queryByText('Late Summary')).toBeNull()
   })
 })
@@ -260,7 +271,7 @@ describe('busy file controls and focus management', () => {
 
     // Controls work again after the run settles.
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Report Findings')
+    await screen.findByRole('heading', { name: /findings that may need your attention/i })
   })
 
   it('moves focus to the results heading on success', async () => {
@@ -268,8 +279,8 @@ describe('busy file controls and focus management', () => {
     await addFile(container, 'cbc.jpg')
     clickAnalyze()
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Report Findings')
-    expect(document.activeElement?.textContent).toMatch(/report findings/i)
+    await screen.findByRole('heading', { name: /findings that may need your attention/i })
+    expect(document.activeElement?.textContent).toMatch(/findings that may need your attention/i)
   })
 
   it('moves focus to the upload heading on start over', async () => {
@@ -277,7 +288,7 @@ describe('busy file controls and focus management', () => {
     await addFile(container, 'cbc.jpg')
     clickAnalyze()
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Report Findings')
+    await screen.findByRole('heading', { name: /findings that may need your attention/i })
 
     fireEvent.click(screen.getByRole('button', { name: /analyze more reports/i }))
     expect(document.activeElement?.textContent).toMatch(/understand your reports/i)

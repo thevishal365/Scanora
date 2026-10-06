@@ -47,7 +47,9 @@ def _analyze_file(client, monkeypatch, side_effect):
 @pytest.mark.parametrize(
     "code,status,key",
     [
+        ("unavailable", 503, "unavailable"),
         ("quota", 429, "quota"),
+        ("malformed_request", 400, "malformed_request"),
         ("timeout", 504, "timeout"),
         ("invalid_response", 502, "invalid_response"),
         ("empty_response", 502, "empty_response"),
@@ -88,6 +90,9 @@ def _chat_body(**overrides):
 @pytest.mark.parametrize(
     "code,status,key",
     [
+        ("unavailable", 503, "unavailable"),
+        ("quota", 429, "quota"),
+        ("malformed_request", 400, "malformed_request"),
         ("timeout", 504, "chat_timeout"),
         ("invalid_response", 502, "chat_invalid"),
         ("empty_response", 502, "chat_invalid"),
@@ -118,6 +123,8 @@ def test_chat_unexpected_failure_is_generic_and_safe(client, monkeypatch):
         ("unsupported", "convert"),
         ("not_image", "re-exporting"),
         ("invalid_response", "clearer file"),
+        ("unavailable", "temporarily unavailable"),
+        ("malformed_request", "check the input"),
         ("rate_limited", "wait a moment"),
         ("quota", "wait a minute"),
         ("timeout", "try again"),

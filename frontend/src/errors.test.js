@@ -8,6 +8,19 @@ describe('messageFromResponse', () => {
     ).toBe('Server says hi.')
   })
 
+  it('uses the temporary-service fallback for an unexplained 503', () => {
+    expect(messageFromResponse({ status: 503 }, null, 'Fallback')).toBe(
+      'The analysis service is temporarily unavailable. Please try again in a little while.',
+    )
+    expect(
+      messageFromResponse(
+        { status: 503 },
+        { detail: 'The provider is temporarily unavailable.' },
+        'Fallback',
+      ),
+    ).toBe('The provider is temporarily unavailable.')
+  })
+
   it('falls back per status when the server sends no usable detail', () => {
     expect(messageFromResponse({ status: 500 }, null, 'Fallback')).toBe(
       STATUS_MESSAGES[500],

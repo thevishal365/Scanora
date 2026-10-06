@@ -1,20 +1,48 @@
-import { isMissingLabel, isRangeAvailable } from './needsAttention'
+import { attentionNote, isMissingLabel, isRangeAvailable } from './needsAttention'
 
-// Builds a concise, neutral chat question from a displayed finding card.
-// Uses only the finding's own displayed fields (name, value, unit) — nothing
-// is invented, and the question makes no diagnosis or treatment claim.
-// Findings without a usable reference range get a variant that does not
-// imply any range exists.
-export function buildFindingQuestion(item) {
+function findingDetails(item) {
   const rawName = String(item?.name ?? '').trim()
-  const subject = rawName ? `this ${rawName} result` : 'this result'
   const value = String(item?.value ?? '').trim()
   const unit = String(item?.unit ?? '').trim()
   const shownUnit = unit && !isMissingLabel(unit) ? ` ${unit}` : ''
-  const valuePart = value ? ` (${value}${shownUnit})` : ''
+  const details = [rawName ? `${rawName} result` : 'report result']
 
-  if (isRangeAvailable(item)) {
-    return `Can you explain ${subject}${valuePart} and the reference range shown in the report?`
+  if (value) {
+    details.push(`value ${value}${shownUnit}`)
   }
-  return `Can you explain ${subject}${valuePart} based on what is shown in the report?`
+  if (isRangeAvailable(item)) {
+    details.push(`reference range ${String(item.reference_range).trim()}`)
+  }
+
+  return { name: rawName || 'this result', context: details.join('; ') }
+}
+
+export function buildFindingQuestion(item, question) {
+  const { context } = findingDetails(item)
+
+  if (question) {
+    return `About my ${context}: ${question}`
+  }
+
+  return `Can you explain my ${context}?`
+}
+
+export function findingQuestionSuggestions(item) {
+  const { name } = findingDetails(item)
+  const note = attentionNote(item)
+  const isPlatelets = name.toLowerCase() === 'platelets'
+  const findingName = isPlatelets ? 'platelet count' : name
+  const direction = note.startsWith('Below')
+    ? 'low'
+    : note.startsWith('Above')
+      ? 'high'
+      : null
+
+  return [
+    isPlatelets ? 'What are platelets?' : `What is ${name}?`,
+    direction
+      ? `Why might my ${findingName} be ${direction}?`
+      : `Why might my ${findingName} be flagged?`,
+    `What does my ${isPlatelets ? 'platelet' : name} result mean?`,
+  ]
 }

@@ -52,7 +52,9 @@ GEMINI_ERROR_STATUS = {
     "invalid_response": 502,
     "empty_response": 502,
     "upstream": 502,
+    "unavailable": 503,
     "quota": 429,
+    "malformed_request": 400,
 }
 
 
@@ -259,6 +261,9 @@ CHAT_ERROR_DETAIL = {
     "invalid_response": HUMAN_ERRORS["chat_invalid"],
     "empty_response": HUMAN_ERRORS["chat_invalid"],
     "upstream": HUMAN_ERRORS["chat_upstream"],
+    "unavailable": HUMAN_ERRORS["unavailable"],
+    "quota": HUMAN_ERRORS["quota"],
+    "malformed_request": HUMAN_ERRORS["malformed_request"],
 }
 
 MAX_CHAT_HISTORY = 20

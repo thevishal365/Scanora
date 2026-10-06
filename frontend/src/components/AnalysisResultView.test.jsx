@@ -1,191 +1,125 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import AnalysisResultView from './AnalysisResultView'
 
-function flaggedValue(name, value, referenceRange) {
-  return { name, value, unit: 'g/dL', reference_range: referenceRange }
+function value(name, result, unit, referenceRange) {
+  return { name, value: result, unit, reference_range: referenceRange }
 }
 
-const analysis = {
-  overall_summary: 'Two reports',
-  reports: [
-    {
-      source_id: 'source-1',
-      source_label: 'a.jpg',
-      report_name: 'Same Name',
-      summary: 'First report',
-      key_findings: [],
-      important_values: [flaggedValue('Hemoglobin', '18.1', '12.0 - 16.0')],
-      simple_explanation: 'First explanation',
-    },
-    {
-      source_id: 'source-2',
-      source_label: 'b.jpg',
-      report_name: 'Same Name',
-      summary: 'Second report',
-      key_findings: [],
-      important_values: [flaggedValue('Glucose', '55', '70 - 100')],
-      simple_explanation: 'Second explanation',
-    },
-  ],
-}
-
-beforeEach(() => {
-  sessionStorage.clear()
-})
-
-afterEach(() => {
-  cleanup()
-  vi.restoreAllMocks()
-})
-
-describe('duplicate report names stay separate when rendered', () => {
-  it('renders one group per source with its own findings and no key collisions', () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    render(
-      <AnalysisResultView analysis={analysis} analysisId="tid" onStartOver={() => {}} />,
-    )
-
-    // Two groups share a display name but render as separate groups in
-    // both the findings section and the context section.
-    const attention = screen.getByRole('region', { name: /identified values/i })
-    expect(within(attention).getAllByText('Same Name')).toHaveLength(2)
-    const context = screen.getByRole('region', { name: /report context & notes/i })
-    expect(within(context).getAllByText('Same Name')).toHaveLength(2)
-
-    // Each finding stays in its own source group.
-    expect(screen.getByText('Hemoglobin')).toBeTruthy()
-    expect(screen.getByText('Glucose')).toBeTruthy()
-    expect(screen.getByText('First explanation')).toBeTruthy()
-    expect(screen.getByText('Second explanation')).toBeTruthy()
-
-    // No React duplicate-key warnings.
-    const keyWarnings = errorSpy.mock.calls.filter((args) =>
-      String(args[0]).includes('same key'),
-    )
-    expect(keyWarnings).toHaveLength(0)
-  })
-})
-
-function overviewReport(sourceId, values) {
+function report(sourceId, reportName, importantValues, summary = 'Report summary') {
   return {
     source_id: sourceId,
     source_label: `${sourceId}.jpg`,
-    report_name: `Report ${sourceId}`,
-    summary: 'Summary',
-    key_findings: [],
-    important_values: values,
-    simple_explanation: 'Explanation',
+    report_name: reportName,
+    summary,
+    key_findings: ['Repeated key observation'],
+    important_values: importantValues,
+    simple_explanation: 'Long report explanation',
   }
 }
 
-function overviewValue(name, value, referenceRange) {
-  return { name, value, unit: '', reference_range: referenceRange }
-}
-
-const IN_RANGE = overviewValue('Hemoglobin', '14', '12 - 16')
-const HIGH = overviewValue('Hemoglobin', '18', '12 - 16')
-const NO_RANGE = overviewValue('Calcium', '9.5', 'Not shown')
-const QUALITATIVE = overviewValue('HBsAg', 'Reactive', 'Not shown')
-
-function overviewCounts() {
-  const region = screen.getByRole('region', { name: /results overview/i })
-  const read = (label) =>
-    Number(within(region).getByText(label).closest('div').querySelector('dd').textContent)
-  return {
-    evaluated: read('Results reviewed'),
-    attention: read('Need attention'),
-    within: read('No attention flag'),
-    unable: read('Unable to evaluate'),
-  }
-}
-
-function renderOverview(reports) {
-  render(
+function renderResults(reports) {
+  return render(
     <AnalysisResultView
-      analysis={{ overall_summary: 'Summary', reports }}
-      analysisId="tid"
+      analysis={{ overall_summary: 'Long overall summary', reports }}
+      analysisId="analysis-id"
       onStartOver={() => {}}
     />,
   )
 }
 
-describe('results overview counts', () => {
-  it('shows all results in range with no attention or unable', () => {
-    renderOverview([overviewReport('source-1', [IN_RANGE, { ...IN_RANGE, name: 'Glucose', value: '90', reference_range: '70 - 100' }])])
-    expect(overviewCounts()).toEqual({ evaluated: 2, attention: 0, within: 2, unable: 0 })
-  })
+beforeEach(() => {
+  sessionStorage.clear()
+  vi.stubGlobal('fetch', vi.fn())
+})
 
-  it('counts attention-worthy results separately', () => {
-    renderOverview([overviewReport('source-1', [IN_RANGE, HIGH])])
-    expect(overviewCounts()).toEqual({ evaluated: 2, attention: 1, within: 1, unable: 0 })
-  })
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
-  it('counts results without a usable range as unable, never within range', () => {
-    renderOverview([overviewReport('source-1', [IN_RANGE, NO_RANGE])])
-    expect(overviewCounts()).toEqual({ evaluated: 2, attention: 0, within: 1, unable: 1 })
-  })
-
-  it('handles mixed attention and unable-to-evaluate results', () => {
-    renderOverview([overviewReport('source-1', [IN_RANGE, HIGH, NO_RANGE])])
-    expect(overviewCounts()).toEqual({ evaluated: 3, attention: 1, within: 1, unable: 1 })
-  })
-
-  it('counts qualitative attention findings without a range', () => {
-    renderOverview([overviewReport('source-1', [QUALITATIVE])])
-    expect(overviewCounts()).toEqual({ evaluated: 1, attention: 1, within: 0, unable: 0 })
-  })
-
-  it('sums across multiple reports', () => {
-    renderOverview([
-      overviewReport('source-1', [HIGH]),
-      overviewReport('source-2', [IN_RANGE, NO_RANGE]),
-    ])
-    expect(overviewCounts()).toEqual({ evaluated: 3, attention: 1, within: 1, unable: 1 })
-  })
-
-  it('counts duplicate test names across reports as separate measurements', () => {
-    renderOverview([
-      overviewReport('source-1', [HIGH]),
-      overviewReport('source-2', [{ ...IN_RANGE }]),
-    ])
-    // Same test name twice: one above range, one within — both counted.
-    expect(overviewCounts()).toEqual({ evaluated: 2, attention: 1, within: 1, unable: 0 })
-  })
-
-  it('shows a neutral empty state when there are zero results', () => {
-    renderOverview([overviewReport('source-1', [])])
-    expect(
-      screen.getByText('No individual results were available to evaluate in these reports.'),
-    ).toBeTruthy()
-    expect(screen.queryByText('Results reviewed')).toBeNull()
-  })
-
-  it('labels a qualitative normal result as no flag, not as within range', () => {
-    renderOverview([
-      overviewReport('source-1', [
-        { name: 'HBsAg', value: 'Negative', unit: '', reference_range: 'Not shown' },
+describe('attention-focused results', () => {
+  it('shows attention findings without normal results, dashboard, summaries, or context', () => {
+    renderResults([
+      report('source-1', 'CBC', [
+        value('RBC', '4.17', 'million/cmm', '4.7 - 6.2'),
+        value('Hemoglobin', '14', 'g/dL', '12 - 16'),
       ]),
     ])
-    expect(overviewCounts()).toEqual({ evaluated: 1, attention: 0, within: 1, unable: 0 })
-    // The bucket must not imply a numeric reference range was involved.
-    expect(screen.queryByText('Within the provided reference range')).toBeNull()
+
+    const findings = screen.getByRole('region', { name: 'Attention-worthy findings' })
+    expect(within(findings).getByText('RBC')).toBeTruthy()
+    expect(within(findings).getByText('4.17 million/cmm')).toBeTruthy()
+    expect(within(findings).getByText('Reference: 4.7–6.2 million/cmm')).toBeTruthy()
+    expect(within(findings).getByText('Below the provided reference range.')).toBeTruthy()
+    expect(within(findings).queryByText('Hemoglobin')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Ask about this RBC' })).toBeTruthy()
+    expect(screen.queryByText('Results overview')).toBeNull()
+    expect(screen.queryByText('Long overall summary')).toBeNull()
+    expect(screen.queryByText('Repeated key observation')).toBeNull()
+    expect(screen.queryByText('Report Context & Notes')).toBeNull()
+    expect(screen.queryByText('Long report explanation')).toBeNull()
   })
 
-  it('shows a neutral empty state when there are no reports', () => {
-    renderOverview([])
-    expect(
-      screen.getByText('No individual results were available to evaluate in these reports.'),
-    ).toBeTruthy()
-  })
-
-  it('never overlaps buckets: evaluated always equals the sum', () => {
-    renderOverview([
-      overviewReport('source-1', [IN_RANGE, HIGH, NO_RANGE, QUALITATIVE]),
-      overviewReport('source-2', [HIGH, NO_RANGE]),
+  it('shows the calm empty state when there are no attention findings', () => {
+    renderResults([
+      report('source-1', 'CBC', [
+        value('Hemoglobin', '14', 'g/dL', '12 - 16'),
+      ]),
     ])
-    const counts = overviewCounts()
-    expect(counts).toEqual({ evaluated: 6, attention: 3, within: 1, unable: 2 })
-    expect(counts.attention + counts.within + counts.unable).toBe(counts.evaluated)
+
+    expect(
+      screen.getByText(
+        'No findings in this report were flagged as needing attention based on the provided reference ranges.',
+      ),
+    ).toBeTruthy()
+    expect(screen.queryByRole('region', { name: 'Attention-worthy findings' })).toBeNull()
+    expect(screen.queryByRole('region', { name: /ask questions about your report/i })).toBeNull()
+  })
+
+  it('keeps duplicate display names separated by source while rendering only attention findings', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderResults([
+      report('source-1', 'Same Name', [
+        value('RBC', '4.17', 'million/cmm', '4.7 - 6.2'),
+      ]),
+      report('source-2', 'Same Name', [
+        value('Platelets', '90', '10^3/uL', '150 - 400'),
+      ]),
+    ])
+
+    const findings = screen.getByRole('region', { name: 'Attention-worthy findings' })
+    expect(within(findings).getAllByText('Same Name')).toHaveLength(2)
+    expect(within(findings).getByText('RBC')).toBeTruthy()
+    expect(within(findings).getByText('Platelets')).toBeTruthy()
+    const keyWarnings = errorSpy.mock.calls.filter((args) =>
+      String(args[0]).includes('same key'),
+    )
+    expect(keyWarnings).toHaveLength(0)
+  })
+
+  it('prefills contextual questions without sending when a finding CTA or suggestion is clicked', () => {
+    renderResults([
+      report('source-1', 'CBC', [
+        value('RBC', '4.17', 'million/cmm', '4.7 - 6.2'),
+      ]),
+    ])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this RBC' }))
+    const composer = screen.getByRole('textbox', {
+      name: /ask a question about your report/i,
+    })
+    expect(composer.value).toBe(
+      'Can you explain my RBC result; value 4.17 million/cmm; reference range 4.7 - 6.2?',
+    )
+    expect(fetch).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'What is RBC?' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Why might my RBC be low?' }))
+    expect(composer.value).toBe(
+      'About my RBC result; value 4.17 million/cmm; reference range 4.7 - 6.2: Why might my RBC be low?',
+    )
+    expect(fetch).not.toHaveBeenCalled()
   })
 })

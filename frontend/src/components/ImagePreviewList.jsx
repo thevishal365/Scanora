@@ -18,7 +18,7 @@ function ImagePreviewList({ items, onRemove, onClearAll, disabled }) {
           type="button"
           onClick={onClearAll}
           disabled={disabled}
-          className="scanora-focus-ring inline-flex h-9 cursor-pointer items-center gap-1 rounded-md px-2 text-xs font-medium text-scanora-muted transition-colors duration-180 hover:bg-scanora-surface-muted hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
+          className="scanora-focus-ring inline-flex h-10 cursor-pointer items-center gap-1 rounded-md px-3 text-xs font-semibold text-scanora-muted transition-all duration-180 hover:bg-scanora-error-soft hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
         >
           <span>Clear all</span>
         </button>

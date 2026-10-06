@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { CHAT_EXPIRED_DETAIL, messageFromResponse } from '../errors'
 import { apiUrl } from '../api'
 import { createRunScope } from '../runScope'
+import {
+  buildFindingQuestion,
+  findingQuestionSuggestions,
+} from '../askAboutFinding'
 
 export const CHAT_STORAGE_KEY = 'scanora:chat'
 
@@ -253,6 +257,11 @@ function ReportChat({ analysisId, prefillRequest }) {
     }
   }
 
+  function handleSuggestedQuestion(question) {
+    setDraft(buildFindingQuestion(prefillRequest.finding, question))
+    composerRef.current?.focus()
+  }
+
   return (
     <section className="mt-6 border-t border-scanora-border-subtle pt-5" aria-labelledby="report-chat-heading">
       <div className="scanora-panel p-4 sm:p-5">
@@ -269,6 +278,27 @@ function ReportChat({ analysisId, prefillRequest }) {
         <p className="mt-1 max-w-xl text-xs leading-relaxed text-scanora-muted sm:text-sm">
           Ask questions regarding any tests or notes visible above. Scanora explains report contents but does not diagnose or recommend treatments.
         </p>
+
+        {prefillRequest?.finding && (
+          <div className="mt-3">
+            <p className="text-xs font-medium text-scanora-muted">
+              Questions about {prefillRequest.finding.name}
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {findingQuestionSuggestions(prefillRequest.finding).map((question) => (
+                <li key={question}>
+                  <button
+                    type="button"
+                    onClick={() => handleSuggestedQuestion(question)}
+                    className="scanora-focus-ring inline-flex min-h-9 cursor-pointer items-center rounded-full border border-scanora-border bg-scanora-surface px-3 py-1.5 text-xs text-scanora-muted transition-colors hover:border-scanora-brand hover:text-scanora-brand"
+                  >
+                    {question}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {!analysisId && (
           <p className="mt-3 text-xs leading-relaxed text-scanora-muted sm:text-sm">
@@ -289,13 +319,13 @@ function ReportChat({ analysisId, prefillRequest }) {
                 key={item.id}
                 className={`max-w-[88%] rounded-lg p-3 text-xs leading-relaxed sm:text-sm ${
                   item.role === 'user'
-                    ? 'ml-auto border border-scanora-primary/25 bg-scanora-brand-soft text-scanora-ink'
-                    : 'mr-auto border border-scanora-border-subtle bg-scanora-surface-muted text-scanora-ink'
+                    ? 'ml-auto border border-scanora-brand/20 bg-scanora-brand-soft text-scanora-ink'
+                    : 'mr-auto border border-scanora-border bg-scanora-surface-muted text-scanora-ink'
                 }`}
               >
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-semibold tracking-wider text-scanora-muted uppercase font-heading">
-                    {item.role === 'user' ? 'You' : 'Scanora Assistant'}
+                    {item.role === 'user' ? 'You' : 'Scanora'}
                   </span>
                   {item.failed && (
                     <span className="text-[10px] font-semibold text-scanora-error">
@@ -304,6 +334,13 @@ function ReportChat({ analysisId, prefillRequest }) {
                   )}
                 </div>
                 <p className="whitespace-pre-wrap">{item.text}</p>
+                {item.role === 'assistant' && (
+                  <p className="mt-2 border-t border-scanora-border-subtle pt-2 text-[11px] leading-relaxed text-scanora-muted">
+                    Educational information only, not a diagnosis or treatment
+                    recommendation. Please discuss your result with a qualified
+                    healthcare professional.
+                  </p>
+                )}
               </li>
             ))}
           </ul>
@@ -353,11 +390,11 @@ function ReportChat({ analysisId, prefillRequest }) {
             type="button"
             onClick={() => sendMessage()}
             disabled={isSending || draft.trim() === '' || !analysisId || isExpired}
-            className="scanora-button-primary scanora-focus-ring inline-flex h-[48px] shrink-0 cursor-pointer items-center justify-center gap-2 sm:w-auto"
+            className="scanora-button-primary scanora-focus-ring scanora-chat-send inline-flex shrink-0 cursor-pointer items-center justify-center"
+            aria-label="Send question"
           >
-            <span>Ask</span>
             <svg
-              className="h-3.5 w-3.5"
+              className="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth="2.5"
@@ -366,6 +403,7 @@ function ReportChat({ analysisId, prefillRequest }) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
             </svg>
+            <span className="hidden sm:inline">Ask</span>
           </button>
         </div>
         <p id="report-chat-hint" className="mt-2 text-[11px] leading-relaxed text-scanora-faint sm:text-xs">

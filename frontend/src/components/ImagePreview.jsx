@@ -2,7 +2,7 @@ function ImagePreview({ item, onRemove, disabled }) {
   const isPdf = item.file.type === 'application/pdf'
 
   return (
-    <li className="scanora-panel flex items-center justify-between gap-3 p-3 transition-colors duration-150 hover:border-scanora-border-strong">
+    <li className="scanora-panel-interactive flex items-center justify-between gap-3 p-3">
       <div className="flex min-w-0 items-center gap-3">
         {isPdf ? (
           <span
@@ -46,7 +46,7 @@ function ImagePreview({ item, onRemove, disabled }) {
         disabled={disabled}
         aria-label={`Remove ${item.file.name}`}
         title={`Remove ${item.file.name}`}
-        className="scanora-focus-ring inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-colors duration-180 hover:bg-scanora-surface-muted hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
+        className="scanora-focus-ring inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-all duration-180 hover:bg-scanora-error-soft hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
       >
         <svg
           className="h-5 w-5"

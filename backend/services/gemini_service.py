@@ -26,7 +26,7 @@ logger = logging.getLogger("scanora.gemini")
 REQUEST_TIMEOUT_MS = 120_000
 
 # Retry configuration for transient errors (e.g. 503 UNAVAILABLE / high demand)
-MAX_RETRIES = 3  # Up to 4 total attempts
+MAX_RETRIES = 1  # Up to 2 total attempts
 BASE_RETRY_DELAY = 1.0  # Initial delay in seconds
 MAX_RETRY_DELAY = 8.0  # Maximum delay in seconds
 RETRY_JITTER_MAX = 0.5  # Random jitter in seconds
@@ -54,6 +54,15 @@ def _is_transient_error(error: Exception) -> bool:
     code = getattr(error, "code", None)
     status = str(getattr(error, "status", None) or "").upper()
     message = str(getattr(error, "message", None) or error).lower()
+
+    if code in (400, 401, 403, 404, 429) or status in {
+        "INVALID_ARGUMENT",
+        "UNAUTHENTICATED",
+        "PERMISSION_DENIED",
+        "NOT_FOUND",
+        "RESOURCE_EXHAUSTED",
+    }:
+        return False
 
     # 503 / UNAVAILABLE / high demand, 500 / INTERNAL, 504 / DEADLINE_EXCEEDED, 502 / BAD_GATEWAY
     if code in (503, 500, 502, 504):
@@ -83,6 +92,16 @@ def _humanize_genai_error(error: Exception, api_key: str) -> GeminiServiceError:
         return GeminiServiceError("quota")
     if code == 404 or status == "NOT_FOUND" or "no longer available" in lowered:
         return GeminiServiceError("upstream")
+    if code == 503 or status == "UNAVAILABLE":
+        return GeminiServiceError("unavailable")
+    if code == 400 or status == "INVALID_ARGUMENT":
+        return GeminiServiceError("malformed_request")
+    if (
+        "high demand" in lowered
+        or "temporarily overloaded" in lowered
+        or "unavailable" in lowered
+    ):
+        return GeminiServiceError("unavailable")
     if "timeout" in lowered or "timed out" in lowered:
         return GeminiServiceError("timeout")
     if any(token in lowered for token in ("api key", "api_key", "permission", "unauth")):
@@ -177,13 +196,18 @@ async def analyze_report_files(
 
 CHAT_GUIDE = """The JSON below is the report context for this session. It comes from the user's currently uploaded reports.
 
-Answer only from that context and the conversation.
+Use the report context as the source of facts about the user's report. You may also provide
+general educational medical information, clearly separated from report-supported facts.
 
 Rules:
 - Explain terms, values, and findings that appear in the context.
+- Answer general educational questions about medical terms and concepts even when the report does not explain them.
+- Clearly distinguish what the report states, general educational information, and possible explanations that are not confirmed in this user's case.
+- When discussing causes or associated conditions, say "possible causes include", "can be associated with", or "may occur with"; never claim these apply to the user based on the report alone.
 - If a value or range is not in the context, say you cannot determine that from the uploaded report. Do not guess.
 - Do not invent values, units, reference ranges, or patient details.
-- Do not diagnose, claim diagnostic certainty, prescribe medication, or recommend starting, stopping, or changing treatment.
+- Do not diagnose, determine the cause of an abnormal result from the report alone, claim diagnostic certainty, prescribe medication, or recommend specific treatment or starting, stopping, or changing treatment.
+- Do not present general possibilities as confirmed facts or overstate medical certainty.
 - Do not pretend to be a doctor.
 - Do not introduce new abnormal findings that are not supported by the context.
 - Do not use external reference ranges to classify values.
@@ -216,7 +240,7 @@ async def answer_report_question(
             role="model",
             parts=[
                 types.Part.from_text(
-                    text="I will only explain information from this report context and will not diagnose or invent values."
+                    text="I will distinguish report-supported facts from general education and possible explanations, and will not diagnose or invent report values."
                 )
             ],
         ),
