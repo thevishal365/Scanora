@@ -9,7 +9,7 @@ function ImagePreviewList({ items, onRemove, onClearAll, disabled }) {
   const totalBytes = items.reduce((sum, item) => sum + item.file.size, 0)
 
   return (
-    <div className="mt-4">
+    <div className="scanora-file-list mt-4">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs font-semibold tracking-wider text-scanora-muted uppercase font-heading">
           Selected Reports ({items.length})

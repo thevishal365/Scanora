@@ -34,8 +34,8 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
   }, [])
 
   return (
-    <div className="mt-6 text-left sm:mt-7">
-      <div className="border-b border-scanora-border-subtle pb-4">
+    <div className="scanora-results mt-6 text-left sm:mt-7">
+      <div className="scanora-results-heading border-b border-scanora-border-subtle pb-4">
         <span className="scanora-kicker">Analysis Complete</span>
         <h2
           id="report-findings-heading"
@@ -65,13 +65,13 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
                 {group.values.map((item, index) => (
                   <article
                     key={`${group.key}-${item.name}-${index}`}
-                    className="scanora-panel border-l-4 border-l-scanora-attention p-4 sm:p-5"
+                    className="scanora-finding-card scanora-panel border-l-4 border-l-scanora-attention p-4 sm:p-5"
                   >
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                       <h3 className="font-heading text-sm font-semibold text-scanora-text uppercase sm:text-base">
                         {item.name}
                       </h3>
-                      <p className="font-heading text-base font-semibold text-scanora-text tabular-nums sm:text-lg">
+                      <p className="scanora-finding-value font-heading text-base font-semibold text-scanora-text tabular-nums sm:text-lg">
                         {item.value}
                         {item.unit ? ` ${item.unit}` : ''}
                       </p>

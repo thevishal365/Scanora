@@ -264,7 +264,7 @@ function ReportChat({ analysisId, prefillRequest }) {
 
   return (
     <section className="mt-6 border-t border-scanora-border-subtle pt-5" aria-labelledby="report-chat-heading">
-      <div className="scanora-panel p-4 sm:p-5">
+      <div className="scanora-chat-panel scanora-panel p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-scanora-primary" aria-hidden="true" />
           <h3
@@ -317,7 +317,7 @@ function ReportChat({ analysisId, prefillRequest }) {
             {messages.map((item) => (
               <li
                 key={item.id}
-                className={`max-w-[88%] rounded-lg p-3 text-xs leading-relaxed sm:text-sm ${
+                className={`scanora-chat-message max-w-[88%] rounded-lg p-3 text-xs leading-relaxed sm:text-sm ${
                   item.role === 'user'
                     ? 'ml-auto border border-scanora-brand/20 bg-scanora-brand-soft text-scanora-ink'
                     : 'mr-auto border border-scanora-border bg-scanora-surface-muted text-scanora-ink'
@@ -372,7 +372,7 @@ function ReportChat({ analysisId, prefillRequest }) {
         <label htmlFor="report-chat-input" className="sr-only">
           Ask a question about your report findings
         </label>
-        <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-end">
+        <div className="scanora-chat-controls mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-end">
           <textarea
             id="report-chat-input"
             ref={composerRef}

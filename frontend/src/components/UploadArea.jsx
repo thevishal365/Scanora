@@ -23,7 +23,7 @@ function UploadArea({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         aria-disabled={disabled ? true : undefined}
-        className={`group relative flex min-h-[176px] flex-col items-center justify-center rounded-lg border px-5 py-6 text-center transition-all duration-180 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-scanora-primary sm:min-h-[190px] sm:py-7 ${
+        className={`scanora-dropzone group relative flex min-h-[176px] flex-col items-center justify-center rounded-lg border px-5 py-6 text-center transition-all duration-180 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-scanora-primary sm:min-h-[190px] sm:py-7 ${
           disabled
             ? 'cursor-default border-dashed border-scanora-border bg-scanora-surface-muted opacity-60'
             : isDragging
@@ -49,10 +49,10 @@ function UploadArea({
         {/* Clinical Document Lens Glyphs */}
         <div
           aria-hidden="true"
-          className={`mb-3 flex h-12 w-12 items-center justify-center rounded-lg transition-all duration-180 sm:h-13 sm:w-13 ${
+          className={`scanora-upload-glyph mb-3 flex h-12 w-12 items-center justify-center rounded-lg transition-all duration-180 sm:h-13 sm:w-13 ${
             isDragging
-              ? 'bg-scanora-primary text-white scale-105'
-              : 'bg-scanora-surface-muted text-scanora-primary group-hover:bg-scanora-brand-soft group-hover:scale-105'
+              ? 'bg-scanora-primary text-white'
+              : 'bg-scanora-surface-muted text-scanora-primary group-hover:bg-scanora-brand-soft'
           }`}
         >
           <svg

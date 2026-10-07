@@ -1,7 +1,8 @@
 function PageFooter() {
   return (
-    <footer className="mt-5 flex justify-center pb-2">
-      <p className="inline-flex items-center text-center text-[11px] text-scanora-faint">
+    <footer className="scanora-footer mt-5 flex items-center justify-between pb-2 text-[11px] text-scanora-faint">
+      <p className="scanora-footer-credit">Powered by Gemini</p>
+      <p className="scanora-footer-author inline-flex items-center text-right">
         Designed by{' '}
         <a
           href="https://x.com/thevishal365"

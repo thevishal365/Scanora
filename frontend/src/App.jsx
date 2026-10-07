@@ -249,100 +249,114 @@ function App() {
     <main className="scanora-page">
       <div className="scanora-content">
         {/* Top brand header bar */}
-        <header className="flex items-center justify-between border-b border-scanora-border-subtle pb-3.5">
+        <header className="scanora-header flex items-center justify-between border-b border-scanora-border-subtle pb-3.5">
           <ScanoraBrand />
           <div className="flex items-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-scanora-border-subtle bg-scanora-surface px-2.5 py-0.5 text-[11px] font-medium text-scanora-muted">
-              <span className="h-1.5 w-1.5 rounded-full bg-scanora-primary" aria-hidden="true" />
-              Session Only
+            <span className="scanora-session-badge inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium">
+              <svg
+                className="h-3.5 w-3.5"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                aria-hidden="true"
+              >
+                <circle cx="8" cy="8" r="5.5" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 4.8V8l2.1 1.3" />
+              </svg>
+              Session only
             </span>
           </div>
         </header>
 
-        {/* Hero title & editorial lead */}
-        <div className="mx-auto mt-6 max-w-xl text-center sm:mt-8">
-          <p className="scanora-kicker">Clinical Document Assistant</p>
-          <h1 id="upload-heading" tabIndex={-1} className="font-heading mx-auto mt-2 text-[28px] font-semibold leading-tight text-scanora-text outline-none sm:text-[32px]">
-            Understand Your Reports, Simply.
-          </h1>
-          {!showResults && (
-            <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-scanora-muted sm:text-sm">
-              Upload diagnostic or lab report files. Scanora highlights attention-worthy values and explains findings in clear, non-diagnostic terms.
-            </p>
-          )}
+        <div className={`scanora-home-grid${showResults ? ' scanora-results-layout' : ''}`}>
+          {/* Hero title & editorial lead */}
+          <div className="scanora-hero">
+            <p className="scanora-kicker">Clinical Document Assistant</p>
+            <h1 id="upload-heading" tabIndex={-1} className="font-heading mt-2 text-[28px] font-semibold leading-tight text-scanora-text outline-none sm:text-[32px]">
+              Understand Your Reports, Simply.
+            </h1>
+            {!showResults && (
+              <p className="mt-2 text-xs leading-relaxed text-scanora-muted sm:text-sm">
+                Upload diagnostic or lab report files. Scanora highlights attention-worthy values and explains findings in clear, non-diagnostic terms.
+              </p>
+            )}
+          </div>
+
+          <div className="scanora-primary-column">
+            {showResults ? (
+              <AnalysisResultView
+                analysis={analysis}
+                analysisId={analysisId}
+                onStartOver={startOver}
+              />
+            ) : (
+              <div className="scanora-workspace w-full">
+                <UploadArea
+                  inputId={FILE_INPUT_ID}
+                  errorId={FILE_ERROR_ID}
+                  errors={activeErrors}
+                  isDragging={isDragging}
+                  disabled={isBusy}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    setIsDragging(true)
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    setIsDragging(false)
+                    addFiles(event.dataTransfer.files)
+                  }}
+                  onFilesChosen={addFiles}
+                />
+
+                <ImagePreviewList
+                  items={selectedItems}
+                  onRemove={removeItem}
+                  onClearAll={() => clearSelectedFiles()}
+                  disabled={isBusy}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleAnalyze}
+                  disabled={isBusy}
+                  aria-busy={isBusy}
+                  className="scanora-button-primary scanora-focus-ring mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2"
+                >
+                  {isBusy ? (
+                    <>
+                      <span>Analyzing your reports</span>
+                      <span className="analyzing-dots" aria-hidden="true" />
+                    </>
+                  ) : (
+                    <>
+                      <span>Analyze Reports</span>
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth="2.5"
+                        stroke="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+
+                {isBusy && <AnalysisProgress />}
+
+                <PrivacyNote />
+              </div>
+            )}
+
+            <Disclaimer />
+          </div>
         </div>
 
-        {/* Main Work Area */}
-        {showResults ? (
-          <AnalysisResultView
-            analysis={analysis}
-            analysisId={analysisId}
-            onStartOver={startOver}
-          />
-        ) : (
-          <div className="mx-auto mt-5 w-full sm:mt-6">
-            <UploadArea
-              inputId={FILE_INPUT_ID}
-              errorId={FILE_ERROR_ID}
-              errors={activeErrors}
-              isDragging={isDragging}
-              disabled={isBusy}
-              onDragOver={(event) => {
-                event.preventDefault()
-                setIsDragging(true)
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(event) => {
-                event.preventDefault()
-                setIsDragging(false)
-                addFiles(event.dataTransfer.files)
-              }}
-              onFilesChosen={addFiles}
-            />
-
-            <ImagePreviewList
-              items={selectedItems}
-              onRemove={removeItem}
-              onClearAll={() => clearSelectedFiles()}
-              disabled={isBusy}
-            />
-
-            <button
-              type="button"
-              onClick={handleAnalyze}
-              disabled={isBusy}
-              aria-busy={isBusy}
-              className="scanora-button-primary scanora-focus-ring mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2"
-            >
-              {isBusy ? (
-                <>
-                  <span>Analyzing your reports</span>
-                  <span className="analyzing-dots" aria-hidden="true" />
-                </>
-              ) : (
-                <>
-                  <span>Analyze Reports</span>
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    strokeWidth="2.5"
-                    stroke="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
-                </>
-              )}
-            </button>
-
-            {isBusy && <AnalysisProgress />}
-
-            <PrivacyNote />
-          </div>
-        )}
-
-        <Disclaimer />
         <PageFooter />
       </div>
     </main>

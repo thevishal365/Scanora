@@ -2,7 +2,7 @@ function ImagePreview({ item, onRemove, disabled }) {
   const isPdf = item.file.type === 'application/pdf'
 
   return (
-    <li className="scanora-panel-interactive flex items-center justify-between gap-3 p-3">
+    <li className="scanora-file-item scanora-panel-interactive flex items-center justify-between gap-3 p-3">
       <div className="flex min-w-0 items-center gap-3">
         {isPdf ? (
           <span
