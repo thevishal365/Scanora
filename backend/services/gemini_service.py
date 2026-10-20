@@ -26,7 +26,7 @@ logger = logging.getLogger("scanora.gemini")
 REQUEST_TIMEOUT_MS = 120_000
 
 # Retry configuration for transient errors (e.g. 503 UNAVAILABLE / high demand)
-MAX_RETRIES = 1  # Up to 2 total attempts
+MAX_RETRIES = 3  # Up to 4 total attempts: delays 1s, 2s, 4s (+ jitter, capped 8s)
 BASE_RETRY_DELAY = 1.0  # Initial delay in seconds
 MAX_RETRY_DELAY = 8.0  # Maximum delay in seconds
 RETRY_JITTER_MAX = 0.5  # Random jitter in seconds

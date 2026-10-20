@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect } from 'react'
 import {
   attentionNote,
   formatReferenceLine,
+  isMissingLabel,
   partitionValues,
 } from '../needsAttention'
 import { groupReportsBySource } from '../reportGroups'
-import { buildFindingQuestion } from '../askAboutFinding'
 import ReportChat from './ReportChat'
 
 function AnalysisResultView({ analysis, analysisId, onStartOver }) {
@@ -16,18 +16,6 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
     }))
     .filter((group) => group.values.length > 0)
   const hasAttention = attentionGroups.length > 0
-
-  const [prefill, setPrefill] = useState(null)
-  const prefillNonce = useRef(0)
-
-  function handleAskAbout(item) {
-    prefillNonce.current += 1
-    setPrefill({
-      text: buildFindingQuestion(item),
-      finding: item,
-      nonce: prefillNonce.current,
-    })
-  }
 
   useEffect(() => {
     document.getElementById('report-findings-heading')?.focus()
@@ -51,60 +39,83 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
 
       {hasAttention ? (
         <>
-          <section
-            className="mt-5 space-y-3"
-            aria-label="Attention-worthy findings"
-          >
-            {attentionGroups.map((group) => (
-              <div key={group.key} className="space-y-3">
-                {attentionGroups.length > 1 && (
-                  <p className="font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase">
-                    {group.name}
-                  </p>
-                )}
-                {group.values.map((item, index) => (
-                  <article
-                    key={`${group.key}-${item.name}-${index}`}
-                    className="scanora-finding-card scanora-panel border-l-4 border-l-scanora-attention p-4 sm:p-5"
-                  >
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-                      <h3 className="font-heading text-sm font-semibold text-scanora-text uppercase sm:text-base">
-                        {item.name}
-                      </h3>
-                      <p className="scanora-finding-value font-heading text-base font-semibold text-scanora-text tabular-nums sm:text-lg">
-                        {item.value}
-                        {item.unit ? ` ${item.unit}` : ''}
-                      </p>
-                    </div>
-
-                    {formatReferenceLine(item) && (
-                      <p className="mt-1 text-xs text-scanora-muted sm:text-sm">
-                        {formatReferenceLine(item)}
-                      </p>
-                    )}
-
-                    <p className="mt-2 text-xs leading-relaxed text-scanora-muted sm:text-sm">
-                      {attentionNote(item)}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAskAbout(item)}
-                      aria-label={`Ask about this ${item.name || 'result'}`}
-                      className="scanora-focus-ring mt-3 inline-flex h-10 cursor-pointer items-center rounded-md bg-scanora-primary px-4 text-xs font-semibold text-white transition-colors duration-180 hover:bg-scanora-brand-hover"
+          <section className="mt-5" aria-label="Attention-worthy findings">
+            <div className="scanora-finding-table scanora-panel overflow-x-auto">
+              <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
+                <thead>
+                  <tr className="border-b border-scanora-border-subtle bg-scanora-surface-muted">
+                    <th
+                      scope="col"
+                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
                     >
-                      Ask about this
-                    </button>
-                  </article>
-                ))}
-              </div>
-            ))}
+                      Test / Parameter
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                    >
+                      Result
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                    >
+                      Reference Range
+                    </th>
+                    <th
+                      scope="col"
+                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                    >
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attentionGroups.map((group) => (
+                    <Fragment key={group.key}>
+                      {attentionGroups.length > 1 && (
+                        <tr>
+                          <th
+                            scope="colgroup"
+                            colSpan={4}
+                            className="border-b border-scanora-border-subtle bg-scanora-surface-subtle px-3 py-1.5 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                          >
+                            {group.name}
+                          </th>
+                        </tr>
+                      )}
+                      {group.values.map((item, index) => (
+                        <tr
+                          key={`${group.key}-${item.name}-${index}`}
+                          className="border-b border-scanora-border-subtle last:border-b-0"
+                        >
+                          <td className="px-3 py-2 font-heading font-semibold text-sm text-scanora-text uppercase sm:px-4">
+                            {item.name}
+                          </td>
+                          <td className="scanora-finding-value px-3 py-2 font-heading font-semibold whitespace-nowrap text-sm text-scanora-text tabular-nums sm:px-4 sm:text-base">
+                            {item.value}
+                            {item.unit && !isMissingLabel(item.unit)
+                              ? ` ${item.unit}`
+                              : ''}
+                          </td>
+                          <td className="px-3 py-2 text-xs whitespace-nowrap text-scanora-muted sm:px-4 sm:text-sm">
+                            {formatReferenceLine(item)}
+                          </td>
+                          <td className="px-3 py-2 text-xs leading-relaxed text-scanora-attention sm:px-4 sm:text-sm">
+                            {attentionNote(item)}
+                          </td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
 
           <ReportChat
             key={analysisId ?? 'legacy'}
             analysisId={analysisId}
-            prefillRequest={prefill}
           />
         </>
       ) : (

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import AnalysisResultView from './AnalysisResultView'
 
 function value(name, result, unit, referenceRange) {
@@ -54,7 +54,12 @@ describe('attention-focused results', () => {
     expect(within(findings).getByText('Reference: 4.7–6.2 million/cmm')).toBeTruthy()
     expect(within(findings).getByText('Below the provided reference range.')).toBeTruthy()
     expect(within(findings).queryByText('Hemoglobin')).toBeNull()
-    expect(screen.getByRole('button', { name: 'Ask about this RBC' })).toBeTruthy()
+    const table = within(findings).getByRole('table')
+    expect(within(table).getByRole('columnheader', { name: 'Test / Parameter' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'Result' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'Reference Range' })).toBeTruthy()
+    expect(within(table).getByRole('columnheader', { name: 'Status' })).toBeTruthy()
+    expect(within(findings).queryByRole('button')).toBeNull()
     expect(screen.queryByText('Results overview')).toBeNull()
     expect(screen.queryByText('Long overall summary')).toBeNull()
     expect(screen.queryByText('Repeated key observation')).toBeNull()
@@ -99,27 +104,20 @@ describe('attention-focused results', () => {
     expect(keyWarnings).toHaveLength(0)
   })
 
-  it('prefills contextual questions without sending when a finding CTA or suggestion is clicked', () => {
+  it('keeps the general questions section without per-finding prompt buttons', () => {
     renderResults([
       report('source-1', 'CBC', [
         value('RBC', '4.17', 'million/cmm', '4.7 - 6.2'),
       ]),
     ])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ask about this RBC' }))
-    const composer = screen.getByRole('textbox', {
-      name: /ask a question about your report/i,
-    })
-    expect(composer.value).toBe(
-      'Can you explain my RBC result; value 4.17 million/cmm; reference range 4.7 - 6.2?',
-    )
-    expect(fetch).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'What is RBC?' })).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Why might my RBC be low?' }))
-    expect(composer.value).toBe(
-      'About my RBC result; value 4.17 million/cmm; reference range 4.7 - 6.2: Why might my RBC be low?',
-    )
+    expect(
+      screen.getByRole('region', { name: /ask questions about your report/i }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('textbox', { name: /ask a question about your report/i }),
+    ).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /ask about this/i })).toBeNull()
     expect(fetch).not.toHaveBeenCalled()
   })
 })

@@ -36,11 +36,12 @@ def test_provider_errors_keep_distinct_error_codes(
 
 
 @pytest.mark.parametrize("operation", ["analysis", "chat"])
-def test_transient_provider_error_makes_at_most_two_requests(
+def test_transient_provider_error_makes_at_most_four_requests_with_backoff(
     monkeypatch, operation
 ):
     error = ProviderError(503, "UNAVAILABLE", "high demand")
     calls = []
+    sleeps = []
 
     class FakeModel:
         async def generate_content(self, **kwargs):
@@ -57,10 +58,10 @@ def test_transient_provider_error_makes_at_most_two_requests(
         lambda: ("test-api-key", "test-model"),
     )
 
-    async def no_sleep(_delay):
-        return None
+    async def record_sleep(delay):
+        sleeps.append(delay)
 
-    monkeypatch.setattr(gemini_service.asyncio, "sleep", no_sleep)
+    monkeypatch.setattr(gemini_service.asyncio, "sleep", record_sleep)
 
     async def invoke():
         if operation == "analysis":
@@ -72,4 +73,8 @@ def test_transient_provider_error_makes_at_most_two_requests(
         asyncio.run(invoke())
 
     assert raised.value.code == "unavailable"
-    assert len(calls) == 2
+    assert len(calls) == 4
+    # Exponential backoff: 1s, 2s, 4s base delays, plus 0–0.5s jitter each.
+    assert sleeps[0] >= 1.0 and sleeps[0] <= 1.5
+    assert sleeps[1] >= 2.0 and sleeps[1] <= 2.5
+    assert sleeps[2] >= 4.0 and sleeps[2] <= 4.5
