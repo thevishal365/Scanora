@@ -40,7 +40,8 @@ def _payload(reports):
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def test_source_ids_are_positional_and_distinct():
@@ -57,7 +58,9 @@ def test_safe_display_filename_strips_paths_and_blanks():
     assert len(safe_display_filename("a" * 200 + ".png")) == 80
 
 
-def test_two_files_receive_distinct_source_ids_end_to_end(client, monkeypatch):
+def test_two_files_receive_distinct_source_ids_end_to_end(
+    client, monkeypatch, poll_analysis
+):
     calls = []
 
     async def fake_analyze_report_files(files, source_ids=None):
@@ -75,8 +78,7 @@ def test_two_files_receive_distinct_source_ids_end_to_end(client, monkeypatch):
             ("files", ("cbc.png", PNG_BYTES, "image/png")),
         ],
     )
-    assert response.status_code == 200
-    data = response.json()
+    data = poll_analysis(client, response).json()
     assert [report["source_id"] for report in data["analysis"]["reports"]] == [
         "source-1",
         "source-2",
@@ -120,7 +122,7 @@ def _bad_payload(kind, source_ids):
 @pytest.mark.parametrize(
     "kind", ["unknown", "missing", "blank", "duplicate", "short", "extra"]
 )
-def test_bad_source_ids_fail_safely(client, monkeypatch, kind):
+def test_bad_source_ids_fail_safely(client, monkeypatch, kind, poll_analysis):
     async def fake_analyze_report_files(files, source_ids=None):
         # Mirror the real service: model output is validated before use.
         return validate_analysis_payload(_bad_payload(kind, source_ids), source_ids)
@@ -133,8 +135,10 @@ def test_bad_source_ids_fail_safely(client, monkeypatch, kind):
             ("files", ("b.png", PNG_BYTES, "image/png")),
         ],
     )
-    assert response.status_code == 502
-    assert response.json()["detail"] == HUMAN_ERRORS["invalid_response"]
+    result = poll_analysis(client, response).json()
+    assert result["status"] == "failed"
+    assert result["error_status"] == 502
+    assert result["error"] == HUMAN_ERRORS["invalid_response"]
 
 
 def test_exact_coverage_match_passes():

@@ -40,7 +40,7 @@ afterEach(() => {
 })
 
 describe('attention-focused results', () => {
-  it('shows attention findings without normal results, dashboard, summaries, or context', () => {
+  it('shows attention findings and the analysis summaries and explanations', () => {
     renderResults([
       report('source-1', 'CBC', [
         value('RBC', '4.17', 'million/cmm', '4.7 - 6.2'),
@@ -60,11 +60,11 @@ describe('attention-focused results', () => {
     expect(within(table).getByRole('columnheader', { name: 'Reference Range' })).toBeTruthy()
     expect(within(table).getByRole('columnheader', { name: 'Status' })).toBeTruthy()
     expect(within(findings).queryByRole('button')).toBeNull()
-    expect(screen.queryByText('Results overview')).toBeNull()
-    expect(screen.queryByText('Long overall summary')).toBeNull()
-    expect(screen.queryByText('Repeated key observation')).toBeNull()
-    expect(screen.queryByText('Report Context & Notes')).toBeNull()
-    expect(screen.queryByText('Long report explanation')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Overall summary' })).toBeTruthy()
+    expect(screen.getByText('Long overall summary')).toBeTruthy()
+    expect(screen.getByText('Report summary')).toBeTruthy()
+    expect(screen.getByText('Repeated key observation')).toBeTruthy()
+    expect(screen.getByText('Long report explanation')).toBeTruthy()
   })
 
   it('shows the calm empty state when there are no attention findings', () => {
@@ -76,11 +76,15 @@ describe('attention-focused results', () => {
 
     expect(
       screen.getByText(
-        'No findings in this report were flagged as needing attention based on the provided reference ranges.',
+        'No test values were flagged based on the reference ranges visible in the reports. This does not rule out health concerns.',
       ),
     ).toBeTruthy()
     expect(screen.queryByRole('region', { name: 'Attention-worthy findings' })).toBeNull()
-    expect(screen.queryByRole('region', { name: /ask questions about your report/i })).toBeNull()
+    expect(screen.getByRole('region', { name: /ask questions about your report/i })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: /ask a question about your report/i })).toBeTruthy()
+    expect(screen.getByText('Long overall summary')).toBeTruthy()
+    expect(screen.getByText('Repeated key observation')).toBeTruthy()
+    expect(screen.getByText('Long report explanation')).toBeTruthy()
   })
 
   it('keeps duplicate display names separated by source while rendering only attention findings', () => {

@@ -9,7 +9,8 @@ import { groupReportsBySource } from '../reportGroups'
 import ReportChat from './ReportChat'
 
 function AnalysisResultView({ analysis, analysisId, onStartOver }) {
-  const attentionGroups = groupReportsBySource(analysis)
+  const reportGroups = groupReportsBySource(analysis)
+  const attentionGroups = reportGroups
     .map((group) => ({
       ...group,
       values: partitionValues(group.report.important_values).attention,
@@ -36,6 +37,53 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
           Here are the results from your report that may need your attention.
         </p>
       </div>
+
+      {analysis.overall_summary && (
+        <section className="mt-5" aria-labelledby="overall-summary-heading">
+          <h3
+            id="overall-summary-heading"
+            className="font-heading text-base font-semibold text-scanora-text"
+          >
+            Overall summary
+          </h3>
+          <p className="mt-1 text-sm leading-relaxed text-scanora-muted">
+            {analysis.overall_summary}
+          </p>
+        </section>
+      )}
+
+      {reportGroups.map(({ key, name, report }) => (
+        <section
+          key={key}
+          className="mt-5 border-t border-scanora-border-subtle pt-4"
+          aria-labelledby={`report-details-${key}`}
+        >
+          <h3
+            id={`report-details-${key}`}
+            className="font-heading text-base font-semibold text-scanora-text"
+          >
+            {name}
+          </h3>
+          {report.summary && (
+            <p className="mt-2 text-sm leading-relaxed text-scanora-muted">
+              {report.summary}
+            </p>
+          )}
+          {report.key_findings?.length > 0 && (
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-scanora-muted">
+              {report.key_findings.map((finding, index) => (
+                <li key={`${key}-finding-${index}`}>{finding}</li>
+              ))}
+            </ul>
+          )}
+          {report.simple_explanation && (
+            <p className="mt-2 text-sm leading-relaxed text-scanora-text">
+              <span className="font-semibold">Explanation: </span>
+              {report.simple_explanation}
+            </p>
+          )}
+        </section>
+      ))}
 
       {hasAttention ? (
         <>
@@ -112,18 +160,18 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
               </table>
             </div>
           </section>
-
-          <ReportChat
-            key={analysisId ?? 'legacy'}
-            analysisId={analysisId}
-          />
         </>
       ) : (
         <p className="scanora-success-callout mt-5 p-4 text-sm leading-relaxed sm:p-5">
-          No findings in this report were flagged as needing attention based on
-          the provided reference ranges.
+          No test values were flagged based on the reference ranges visible in
+          the reports. This does not rule out health concerns.
         </p>
       )}
+
+      <ReportChat
+        key={analysisId ?? 'legacy'}
+        analysisId={analysisId}
+      />
 
       <div className="mt-7">
         <button

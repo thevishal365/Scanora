@@ -1,9 +1,13 @@
 import asyncio
+import copy
+import hashlib
 import json
 import logging
 import os
 import random
 import re
+import time
+from collections import OrderedDict
 
 from google import genai
 from google.genai import types
@@ -30,6 +34,53 @@ MAX_RETRIES = 3  # Up to 4 total attempts: delays 1s, 2s, 4s (+ jitter, capped 8
 BASE_RETRY_DELAY = 1.0  # Initial delay in seconds
 MAX_RETRY_DELAY = 8.0  # Maximum delay in seconds
 RETRY_JITTER_MAX = 0.5  # Random jitter in seconds
+ANALYSIS_CACHE_TTL_SECONDS = 60 * 60
+ANALYSIS_CACHE_MAX_ENTRIES = 128
+_ANALYSIS_CACHE: OrderedDict[str, tuple[float, dict]] = OrderedDict()
+
+
+def _analysis_cache_key(
+    files: list[tuple[bytes, str]], source_ids: list[str], model: str
+) -> str:
+    digest = hashlib.sha256()
+    for value in (model, SYSTEM_INSTRUCTION, USER_INSTRUCTION, *source_ids):
+        encoded = value.encode("utf-8")
+        digest.update(len(encoded).to_bytes(8, "big"))
+        digest.update(encoded)
+    for content, mime_type in files:
+        encoded_mime = mime_type.encode("utf-8")
+        digest.update(len(encoded_mime).to_bytes(8, "big"))
+        digest.update(encoded_mime)
+        digest.update(len(content).to_bytes(8, "big"))
+        digest.update(content)
+    return digest.hexdigest()
+
+
+def _get_cached_analysis(key: str) -> dict | None:
+    now = time.monotonic()
+    for cached_key, (expires_at, _result) in list(_ANALYSIS_CACHE.items()):
+        if expires_at <= now:
+            del _ANALYSIS_CACHE[cached_key]
+    cached = _ANALYSIS_CACHE.get(key)
+    if cached is None:
+        return None
+    _ANALYSIS_CACHE.move_to_end(key)
+    return copy.deepcopy(cached[1])
+
+
+def _cache_analysis(key: str, analysis: dict) -> None:
+    _ANALYSIS_CACHE[key] = (
+        time.monotonic() + ANALYSIS_CACHE_TTL_SECONDS,
+        copy.deepcopy(analysis),
+    )
+    _ANALYSIS_CACHE.move_to_end(key)
+    while len(_ANALYSIS_CACHE) > ANALYSIS_CACHE_MAX_ENTRIES:
+        _ANALYSIS_CACHE.popitem(last=False)
+
+
+def reset_analysis_cache() -> None:
+    """Clear the in-memory analysis cache (test hook)."""
+    _ANALYSIS_CACHE.clear()
 
 
 def _sanitize_error_text(text: str, api_key: str) -> str:
@@ -122,6 +173,10 @@ async def analyze_report_files(
     ids = list(source_ids) if source_ids else build_source_ids(len(files))
 
     api_key, model = _settings()
+    cache_key = _analysis_cache_key(files, ids, model)
+    cached = _get_cached_analysis(cache_key)
+    if cached is not None:
+        return cached
 
     # Parts are sent with their exact MIME type ("image/jpeg", "image/png", or
     # "application/pdf"), so Gemini handles images and PDF documents natively.
@@ -187,11 +242,18 @@ async def analyze_report_files(
     parsed = getattr(response, "parsed", None)
     if parsed is not None:
         if hasattr(parsed, "model_dump"):
-            return validate_analysis_payload(parsed.model_dump(), ids)
-        if isinstance(parsed, dict):
-            return validate_analysis_payload(parsed, ids)
+            analysis = validate_analysis_payload(parsed.model_dump(), ids)
+        elif isinstance(parsed, dict):
+            analysis = validate_analysis_payload(parsed, ids)
+        else:
+            analysis = None
+    else:
+        analysis = None
 
-    return parse_model_json(getattr(response, "text", None), ids)
+    if analysis is None:
+        analysis = parse_model_json(getattr(response, "text", None), ids)
+    _cache_analysis(cache_key, analysis)
+    return copy.deepcopy(analysis)
 
 
 CHAT_GUIDE = """The JSON below is the report context for this session. It comes from the user's currently uploaded reports.

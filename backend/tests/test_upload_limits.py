@@ -15,7 +15,8 @@ def _png_of_size(size: int) -> bytes:
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture()
@@ -42,7 +43,7 @@ def patched_analyze(monkeypatch):
     return calls
 
 
-def test_exactly_max_files_accepted(client, patched_analyze):
+def test_exactly_max_files_accepted(client, patched_analyze, poll_analysis):
     response = client.post(
         "/api/analyze",
         files=[
@@ -50,7 +51,7 @@ def test_exactly_max_files_accepted(client, patched_analyze):
             for i in range(MAX_FILES)
         ],
     )
-    assert response.status_code == 200
+    assert poll_analysis(client, response).status_code == 200
     assert len(patched_analyze) == 1
     assert len(patched_analyze[0]) == MAX_FILES
 
@@ -70,7 +71,7 @@ def test_over_max_files_rejected_before_processing(client, patched_analyze):
     assert patched_analyze == []
 
 
-def test_exact_total_bytes_accepted(client, patched_analyze):
+def test_exact_total_bytes_accepted(client, patched_analyze, poll_analysis):
     # 3 x 10 MB valid PNGs == exactly MAX_TOTAL_BYTES (each within per-file).
     per_file = MAX_TOTAL_BYTES // 3
     assert per_file * 3 == MAX_TOTAL_BYTES
@@ -81,7 +82,7 @@ def test_exact_total_bytes_accepted(client, patched_analyze):
             for i in range(3)
         ],
     )
-    assert response.status_code == 200
+    assert poll_analysis(client, response).status_code == 200
     assert len(patched_analyze) == 1
     assert len(patched_analyze[0]) == 3
 

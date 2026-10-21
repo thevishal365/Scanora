@@ -6,17 +6,18 @@ alwaysApply: false
 
 # Forms and validation
 
-- State file rules before the user fails: JPG, JPEG, PNG, and the size limit.
+- State file rules before the user fails: JPG, JPEG, PNG, PDF, and the size limit.
 - Validate as soon as files are chosen. Keep valid files; reject the rest with a clear reason.
 - Put errors next to the upload area. Use text, not color alone.
 - Keep selected images if some files fail. Do not wipe the whole selection.
 - Use human-readable messages. Never show raw MIME types or stack traces.
 
-Allowed now: JPG, JPEG, PNG. Reject PDF, DOCX, TXT, and other types.
+Allowed formats: JPG, JPEG, PNG, and PDF. Reject DOC, DOCX, TXT, and other types.
+Accept PDFs only when the `.pdf` extension, `application/pdf` MIME type, and `%PDF-` file signature agree. Apply the same per-file, total-size, and file-count limits as images; the backend must repeat validation because browser checks are not a trust boundary.
 
 ```text
 ❌ application/pdf is not in ALLOWED_MIME
-✅ PDF files are not supported. Please upload JPG, JPEG, or PNG images.
+✅ This file is not a valid PDF document.
 ```
 
 - Labels must describe the control. Icon-only buttons need an accessible name (for example, “Remove lab-report.png”).

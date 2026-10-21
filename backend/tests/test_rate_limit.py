@@ -27,7 +27,8 @@ def _analysis():
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture()
@@ -54,14 +55,14 @@ def patched_chat(monkeypatch):
     return calls
 
 
-def test_analyze_rate_limit_returns_429(client, patched_analyze):
+def test_analyze_rate_limit_returns_429(client, patched_analyze, poll_analysis):
     limit, _window = RATE_LIMIT_ANALYZE
     for _ in range(limit):
         response = client.post(
             "/api/analyze",
             files=[("files", ("cbc.png", PNG_BYTES, "image/png"))],
         )
-        assert response.status_code == 200
+        assert poll_analysis(client, response).status_code == 200
     assert len(patched_analyze) == limit
 
     throttled = client.post(
@@ -95,16 +96,16 @@ def test_chat_rate_limit_returns_429(client, patched_chat):
     assert len(patched_chat) == limit
 
 
-def test_analyze_and_chat_limits_are_independent(client, patched_analyze, patched_chat):
+def test_analyze_and_chat_limits_are_independent(
+    client, patched_analyze, patched_chat, poll_analysis
+):
     analyze_limit, _ = RATE_LIMIT_ANALYZE
     for _ in range(analyze_limit):
-        assert (
-            client.post(
+        response = client.post(
                 "/api/analyze",
                 files=[("files", ("cbc.png", PNG_BYTES, "image/png"))],
-            ).status_code
-            == 200
-        )
+            )
+        assert poll_analysis(client, response).status_code == 200
     assert (
         client.post(
             "/api/analyze",

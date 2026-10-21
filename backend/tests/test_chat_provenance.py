@@ -43,7 +43,8 @@ def _analysis():
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture()
@@ -219,7 +220,7 @@ def test_chat_rejects_empty_message_with_valid_token(client, patched_chat):
     assert patched_chat == []
 
 
-def test_analyze_returns_signed_identity(client, monkeypatch):
+def test_analyze_returns_signed_identity(client, monkeypatch, poll_analysis):
     async def fake_analyze_report_files(files, source_ids=None):
         return _analysis()
 
@@ -230,8 +231,7 @@ def test_analyze_returns_signed_identity(client, monkeypatch):
         "/api/analyze",
         files=[("files", ("cbc.png", b"\x89PNG\r\n\x1a\n" + b"body", "image/png"))],
     )
-    assert response.status_code == 200
-    data = response.json()
+    data = poll_analysis(client, response).json()
     assert data["success"] is True
     expected_report = {**_analysis()["reports"][0], "source_label": "cbc.png"}
     assert data["analysis"]["overall_summary"] == _analysis()["overall_summary"]

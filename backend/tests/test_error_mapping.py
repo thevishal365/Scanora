@@ -28,7 +28,8 @@ def _analysis():
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 def _analyze_file(client, monkeypatch, side_effect):
@@ -58,17 +59,25 @@ def _analyze_file(client, monkeypatch, side_effect):
         ("not_configured", 503, "not_configured"),
     ],
 )
-def test_analyze_error_codes_map_to_status_and_message(client, monkeypatch, code, status, key):
+def test_analyze_error_codes_map_to_status_and_message(
+    client, monkeypatch, code, status, key, poll_analysis
+):
     response = _analyze_file(client, monkeypatch, GeminiServiceError(code))
-    assert response.status_code == status
-    assert response.json()["detail"] == HUMAN_ERRORS[key]
+    result = poll_analysis(client, response).json()
+    assert result["status"] == "failed"
+    assert result["error_status"] == status
+    assert result["error"] == HUMAN_ERRORS[key]
 
 
-def test_analyze_unexpected_failure_is_generic_and_safe(client, monkeypatch):
+def test_analyze_unexpected_failure_is_generic_and_safe(
+    client, monkeypatch, poll_analysis
+):
     response = _analyze_file(client, monkeypatch, RuntimeError("db connection string"))
-    assert response.status_code == 500
-    assert response.json()["detail"] == HUMAN_ERRORS["processing"]
-    assert "db connection string" not in response.json()["detail"]
+    result = poll_analysis(client, response).json()
+    assert result["status"] == "failed"
+    assert result["error_status"] == 500
+    assert result["error"] == HUMAN_ERRORS["processing"]
+    assert "db connection string" not in result["error"]
 
 
 def _chat(client, monkeypatch, body, side_effect=None):

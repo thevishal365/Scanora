@@ -1,4 +1,5 @@
 from pathlib import Path
+import asyncio
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,7 +18,8 @@ TEXT_BYTES = b"hello world, definitely not a pdf"
 
 @pytest.fixture()
 def client():
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture()
@@ -44,29 +46,64 @@ def patched_analyze(monkeypatch):
     return calls
 
 
-def test_valid_png(client, patched_analyze):
+def test_valid_png(client, patched_analyze, poll_analysis):
     response = client.post(
         "/api/analyze",
         files=[("files", ("cbc.png", PNG_BYTES, "image/png"))],
     )
-    assert response.status_code == 200
-    assert response.json()["success"] is True
+    result = poll_analysis(client, response)
+    assert result.json()["success"] is True
     assert len(patched_analyze) == 1
     assert len(patched_analyze[0]) == 1
 
 
-def test_valid_pdf(client, patched_analyze):
+def test_analyze_returns_task_before_background_work_finishes(client, monkeypatch, poll_analysis):
+    async def delayed_analysis(files, source_ids=None):
+        await asyncio.sleep(0.1)
+        return {
+            "overall_summary": "Fixture summary",
+            "reports": [
+                {
+                    "source_id": "source-1",
+                    "report_name": "Test Report",
+                    "summary": "Fixture summary",
+                    "key_findings": [],
+                    "important_values": [],
+                    "simple_explanation": "Fixture explanation",
+                }
+            ],
+        }
+
+    monkeypatch.setattr(main_module, "analyze_report_files", delayed_analysis)
+    response = client.post(
+        "/api/analyze",
+        files=[("files", ("cbc.png", PNG_BYTES, "image/png"))],
+    )
+    assert response.status_code == 202
+    assert response.json()["status"] == "processing"
+
+    status = client.get(f"/api/analyze/status/{response.json()['task_id']}")
+    assert status.status_code == 200
+    assert status.json()["status"] == "processing"
+    assert poll_analysis(client, response).json()["status"] == "completed"
+
+
+def test_unknown_analysis_task_returns_404(client):
+    response = client.get("/api/analyze/status/not-a-task")
+    assert response.status_code == 404
+
+
+def test_valid_pdf(client, patched_analyze, poll_analysis):
     response = client.post(
         "/api/analyze",
         files=[("files", ("report.pdf", PDF_BYTES, "application/pdf"))],
     )
-    assert response.status_code == 200
-    assert response.json()["success"] is True
+    assert poll_analysis(client, response).json()["success"] is True
     assert len(patched_analyze[0]) == 1
     assert patched_analyze[0][0] == (PDF_BYTES, "application/pdf")
 
 
-def test_mixed_jpg_png_pdf_in_one_request(client, patched_analyze):
+def test_mixed_jpg_png_pdf_in_one_request(client, patched_analyze, poll_analysis):
     response = client.post(
         "/api/analyze",
         files=[
@@ -75,8 +112,7 @@ def test_mixed_jpg_png_pdf_in_one_request(client, patched_analyze):
             ("files", ("c.pdf", PDF_BYTES, "application/pdf")),
         ],
     )
-    assert response.status_code == 200
-    assert response.json()["success"] is True
+    assert poll_analysis(client, response).json()["success"] is True
     assert len(patched_analyze[0]) == 3
 
 
@@ -105,14 +141,14 @@ def test_docx_is_rejected(client, patched_analyze):
     assert patched_analyze == []
 
 
-def test_exact_10mb_pdf_is_accepted(client, patched_analyze):
+def test_exact_10mb_pdf_is_accepted(client, patched_analyze, poll_analysis):
     payload = PDF_BYTES + b"\x00" * (MAX_FILE_BYTES - len(PDF_BYTES))
     assert len(payload) == MAX_FILE_BYTES
     response = client.post(
         "/api/analyze",
         files=[("files", ("big.pdf", payload, "application/pdf"))],
     )
-    assert response.status_code == 200
+    assert poll_analysis(client, response).status_code == 200
     assert len(patched_analyze[0]) == 1
 
 

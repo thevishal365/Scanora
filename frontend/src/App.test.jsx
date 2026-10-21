@@ -8,53 +8,75 @@ function makeJpg(name) {
   return new File([new Uint8Array(JPEG_MAGIC)], name, { type: 'image/jpeg' })
 }
 
+let pendingRequests
+let taskStatusResponses
+
 function analysisResponse(id, summary) {
+  taskStatusResponses.set(id, [
+    {
+      ok: true,
+      json: async () => ({
+        status: 'completed',
+        success: true,
+        analysis: {
+          overall_summary: summary,
+          reports: [
+            {
+              source_id: 'source-1',
+              source_label: 'cbc.jpg',
+              report_name: 'CBC',
+              summary: 'Report summary',
+              key_findings: [],
+              important_values: [
+                {
+                  name: `Finding ${id}`,
+                  value: '18',
+                  unit: 'g/dL',
+                  reference_range: '12 - 16',
+                },
+              ],
+              simple_explanation: 'Plain explanation',
+            },
+          ],
+        },
+        analysis_id: id,
+      }),
+    },
+  ])
   return {
     ok: true,
-    json: async () => ({
-      success: true,
-      analysis: {
-        overall_summary: summary,
-        reports: [
-          {
-            source_id: 'source-1',
-            source_label: 'cbc.jpg',
-            report_name: 'CBC',
-            summary: 'Report summary',
-            key_findings: [],
-            important_values: [
-              {
-                name: `Finding ${id}`,
-                value: '18',
-                unit: 'g/dL',
-                reference_range: '12 - 16',
-              },
-            ],
-            simple_explanation: 'Plain explanation',
-          },
-        ],
-      },
-      analysis_id: id,
-    }),
+    status: 202,
+    json: async () => ({ task_id: id, status: 'processing' }),
   }
 }
 
-let pendingRequests
-
 function mockFetch() {
   pendingRequests = []
+  taskStatusResponses = new Map()
   vi.stubGlobal(
     'fetch',
     vi.fn(
-      (url, opts) =>
-        new Promise((resolve, reject) => {
+      (url, opts) => {
+        if (String(url).includes('/api/analyze/status/')) {
+          const taskId = String(url).split('/').pop()
+          const responses = taskStatusResponses.get(taskId) || []
+          return Promise.resolve(
+            responses.shift() || {
+              ok: false,
+              status: 404,
+              json: async () => ({ detail: 'Task not found' }),
+            },
+          )
+        }
+        return new Promise((resolve, reject) => {
           pendingRequests.push({ url, opts, resolve, reject })
           opts?.signal?.addEventListener('abort', () => {
             const err = new Error('The operation was aborted.')
             err.name = 'AbortError'
             reject(err)
           })
-        }),
+        })
+      },
     ),
   )
 }
@@ -189,6 +211,48 @@ describe('analysis concurrency guards', () => {
 })
 
 describe('analysis loading state', () => {
+  it('polls the task until the server returns the completed analysis', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'cbc.jpg')
+    const submission = analysisResponse('id-poll', 'Polled Summary')
+    const completed = taskStatusResponses.get('id-poll')[0]
+    taskStatusResponses.set('id-poll', [
+      { ok: true, json: async () => ({ status: 'processing' }) },
+      completed,
+    ])
+
+    clickAnalyze()
+    pendingRequests[0].resolve(submission)
+    expect(screen.getByRole('status')).toBeTruthy()
+    await screen.findByText('Finding id-poll', {}, { timeout: 3000 })
+    expect(
+      fetch.mock.calls.filter(([url]) =>
+        String(url).includes('/api/analyze/status/'),
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('shows the safe error returned by a failed analysis task', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'cbc.jpg')
+    const submission = analysisResponse('id-failed', 'Unused Summary')
+    taskStatusResponses.set('id-failed', [
+      {
+        ok: true,
+        json: async () => ({
+          status: 'failed',
+          error: 'The analysis service is temporarily unavailable.',
+        }),
+      },
+    ])
+
+    clickAnalyze()
+    pendingRequests[0].resolve(submission)
+    expect(
+      await screen.findByText('The analysis service is temporarily unavailable.'),
+    ).toBeTruthy()
+  })
+
   it('shows staged loading while the analysis runs', async () => {
     const { container } = render(<App />)
     await addFile(container, 'cbc.jpg')

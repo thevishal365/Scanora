@@ -121,21 +121,26 @@ The backend handles file uploads, Gemini analysis, report-specific chat, validat
 
 ```text
 POST /api/analyze
+GET  /api/analyze/status/{task_id}
 POST /api/chat
 GET  /api/health
 ```
 
 ### Analyze Reports
 
-`POST /api/analyze`
+`POST /api/analyze` validates and reads the uploaded files, then returns HTTP `202` with a `task_id` and `status: "processing"`. Poll `GET /api/analyze/status/{task_id}` until the task reports `completed` or `failed`. A completed response contains the analysis and signed chat identity; a failed response includes a user-safe error message and `error_status`.
 
-Accepts one or multiple JPG/JPEG/PNG/PDF files (up to 10 MB each, up to 10 files and 30 MB total per request) and sends them to Gemini for direct analysis.
+Accepts one or multiple JPG/JPEG/PNG/PDF files (up to 10 MB each, up to 10 files and 30 MB total per request). Gemini analysis runs after the upload request returns, avoiding a long-lived upload HTTP request.
 
 Gemini returns a structured analysis of information in the uploaded report, including reported values and explicit flags where available.
 
-The backend returns the structured report analysis and preserves each report's source identity. The frontend's existing `needsAttention.js` logic classifies values using the available reference range or explicit report flags. The main results view displays only attention-worthy findings; normal/within-range values and overview statistics are not the primary results experience.
+The backend returns the structured report analysis and preserves each report's source identity. The frontend's existing `needsAttention.js` logic classifies values using the available reference range or explicit report flags. The main results view displays attention-worthy values and report summaries; normal/within-range values are not listed individually, and the former overview dashboard is not the primary results experience.
 
-Expensive endpoints are rate-limited per client IP (10 analyses and 30 chat messages per 60 seconds); excess requests receive HTTP 429. These are in-process limits for a single backend instance — use gateway-level limiting if replicas are added.
+Analysis tasks are retained in process memory for 30 minutes, with up to four active tasks and 128 task records. Gemini analysis results are cached in process memory for one hour, up to 128 entries, using the model, prompt, file content, MIME type, and source IDs as the cache key. Cache entries and task results are transient and contain report-derived data.
+
+The task store, task workers, rate limits, and analysis cache are process-local. A restart loses active tasks and cache entries; multiple workers or replicas do not share status or cache state. This is suitable for a single-process deployment, not a durable or horizontally scalable job system. Use a shared queue/cache and gateway-level rate limiting before scaling out.
+
+Expensive endpoints are rate-limited per client IP (10 analysis submissions and 30 chat messages per 60 seconds); excess requests receive HTTP 429.
 
 Transient Gemini errors are retried at most once, so a single analysis or chat action makes at most two Gemini requests. Provider HTTP 503 / `UNAVAILABLE` errors are reported as temporary service unavailability. Quota/rate-limit, authentication, malformed-request, and invalid-model-response errors have distinct handling.
 
@@ -284,7 +289,7 @@ Temporary processing data is cleaned up after requests where applicable.
 python -m pytest backend/tests/ -v
 ```
 
-Backend tests cover upload validation (extensions, MIME types, magic bytes, per-file/total/count limits), the `/api/analyze` endpoint, mixed JPG/PNG/PDF requests, rate limiting, chat provenance and error mapping, tolerant analysis-schema validation, source provenance, retry limits, and prompt-boundary configuration. A Gemini PDF integration test is marked `integration` and skipped when `GEMINI_API_KEY` or `GEMINI_MODEL` is unset. When both are configured, the full backend test command runs it and makes a Gemini request; select it explicitly with `-m integration` when desired.
+Backend tests cover upload validation (extensions, MIME types, magic bytes, per-file/total/count limits), asynchronous analysis task creation and polling, in-memory analysis caching, mixed JPG/PNG/PDF requests, rate limiting, chat provenance and error mapping, tolerant analysis-schema validation, source provenance, retry limits, and prompt-boundary configuration. A Gemini PDF integration test is marked `integration` and skipped when `GEMINI_API_KEY` or `GEMINI_MODEL` is unset. When both are configured, the full backend test command runs it and makes a Gemini request; select it explicitly with `-m integration` when desired.
 
 ### Frontend
 

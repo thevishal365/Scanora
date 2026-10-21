@@ -3,8 +3,11 @@ from env_loader import load_scanora_env
 # Load C:\Project\Scanora\.env before Gemini settings are read.
 load_scanora_env()
 
+import asyncio
+import logging
 import time
 from threading import Lock
+from uuid import uuid4
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -33,6 +36,15 @@ from services.analysis_token import AnalysisTokenError, seal_analysis, unseal_an
 from services.gemini_service import analyze_report_files, answer_report_question
 
 app = FastAPI(title="Scanora")
+logger = logging.getLogger("scanora.api")
+
+# In-process job storage is for a single backend process only. A restart loses
+# active jobs; replicas/workers need a shared queue and task store.
+ANALYSIS_TASK_TTL_SECONDS = 30 * 60
+MAX_ANALYSIS_TASKS = 128
+MAX_ACTIVE_ANALYSIS_TASKS = 4
+_ANALYSIS_TASKS: dict[str, dict] = {}
+_ANALYSIS_WORKERS: set[asyncio.Task] = set()
 
 app.add_middleware(
     CORSMiddleware,
@@ -143,7 +155,70 @@ async def read_upload_capped(upload: UploadFile, filename: str = "file") -> byte
     return b"".join(chunks)
 
 
-@app.post("/api/analyze")
+def _prune_analysis_tasks(now: float) -> None:
+    expired = [
+        task_id
+        for task_id, task in _ANALYSIS_TASKS.items()
+        if task["status"] != "processing"
+        and now - task["updated_at"] >= ANALYSIS_TASK_TTL_SECONDS
+    ]
+    for task_id in expired:
+        del _ANALYSIS_TASKS[task_id]
+
+    excess = len(_ANALYSIS_TASKS) - MAX_ANALYSIS_TASKS + 1
+    if excess > 0:
+        completed = sorted(
+            (
+                (task["updated_at"], task_id)
+                for task_id, task in _ANALYSIS_TASKS.items()
+                if task["status"] != "processing"
+            )
+        )
+        for _updated_at, task_id in completed[:excess]:
+            del _ANALYSIS_TASKS[task_id]
+
+
+def reset_analysis_tasks() -> None:
+    """Clear in-memory analysis tasks (test hook)."""
+    _ANALYSIS_TASKS.clear()
+
+
+async def _run_analysis_task(
+    task_id: str,
+    file_parts: list[tuple[bytes, str]],
+    source_ids: list[str],
+    source_labels: dict[str, str],
+) -> None:
+    task = _ANALYSIS_TASKS[task_id]
+    try:
+        analysis = await analyze_report_files(file_parts, source_ids)
+        analysis["reports"] = [
+            {
+                **report,
+                "source_label": source_labels.get(report["source_id"], "report"),
+            }
+            for report in analysis["reports"]
+        ]
+        task["result"] = {
+            "success": True,
+            "analysis": analysis,
+            "analysis_id": seal_analysis(analysis),
+        }
+        task["status"] = "completed"
+    except GeminiServiceError as error:
+        task["error"] = HUMAN_ERRORS.get(error.code, HUMAN_ERRORS["upstream"])
+        task["error_status"] = GEMINI_ERROR_STATUS.get(error.code, 502)
+        task["status"] = "failed"
+    except Exception:
+        logger.exception("Unexpected analysis task failure task_id=%s", task_id)
+        task["error"] = HUMAN_ERRORS["processing"]
+        task["error_status"] = 500
+        task["status"] = "failed"
+    finally:
+        task["updated_at"] = time.monotonic()
+
+
+@app.post("/api/analyze", status_code=202)
 async def analyze(request: Request, files: list[UploadFile] | None = File(default=None)):
     limit, window = RATE_LIMIT_ANALYZE
     check_rate_limit(request, "analyze", limit, window)
@@ -212,35 +287,59 @@ async def analyze(request: Request, files: list[UploadFile] | None = File(defaul
 
             source_labels[source_ids[index]] = safe_display_filename(upload.filename)
             file_parts.append((content, mime_for_extension(extension)))
-
-        analysis = await analyze_report_files(file_parts, source_ids)
-        # Attach server-side display labels (never model-generated). Every
-        # report passed validation, so each source_id is one we issued.
-        analysis["reports"] = [
-            {
-                **report,
-                "source_label": source_labels.get(report["source_id"], "report"),
-            }
-            for report in analysis["reports"]
-        ]
     except HTTPException:
         raise
-    except GeminiServiceError as error:
-        raise HTTPException(
-            status_code=GEMINI_ERROR_STATUS.get(error.code, 502),
-            detail=HUMAN_ERRORS.get(error.code, HUMAN_ERRORS["upstream"]),
-        ) from None
     except Exception:
         raise HTTPException(status_code=500, detail=HUMAN_ERRORS["processing"]) from None
     finally:
         for upload in files:
             await upload.close()
 
-    return {
-        "success": True,
-        "analysis": analysis,
-        "analysis_id": seal_analysis(analysis),
+    now = time.monotonic()
+    _prune_analysis_tasks(now)
+    active_tasks = sum(
+        task["status"] == "processing" for task in _ANALYSIS_TASKS.values()
+    )
+    if active_tasks >= MAX_ACTIVE_ANALYSIS_TASKS:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis is busy. Please wait a moment and try again.",
+            headers={"Retry-After": "5"},
+        )
+    if len(_ANALYSIS_TASKS) >= MAX_ANALYSIS_TASKS:
+        raise HTTPException(
+            status_code=503,
+            detail="Analysis status storage is busy. Please try again shortly.",
+            headers={"Retry-After": "5"},
+        )
+
+    task_id = uuid4().hex
+    _ANALYSIS_TASKS[task_id] = {
+        "status": "processing",
+        "created_at": now,
+        "updated_at": now,
     }
+    worker = asyncio.create_task(
+        _run_analysis_task(task_id, file_parts, source_ids, source_labels)
+    )
+    _ANALYSIS_WORKERS.add(worker)
+    worker.add_done_callback(_ANALYSIS_WORKERS.discard)
+    return {"task_id": task_id, "status": "processing"}
+
+
+@app.get("/api/analyze/status/{task_id}")
+def analysis_status(task_id: str):
+    _prune_analysis_tasks(time.monotonic())
+    task = _ANALYSIS_TASKS.get(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="Analysis task not found or expired.")
+    response = {"task_id": task_id, "status": task["status"]}
+    if task["status"] == "completed":
+        response.update(task["result"])
+    elif task["status"] == "failed":
+        response["error"] = task["error"]
+        response["error_status"] = task["error_status"]
+    return response
 
 
 class ChatTurn(BaseModel):

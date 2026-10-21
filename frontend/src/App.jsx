@@ -9,13 +9,18 @@ import { CHAT_STORAGE_KEY, clearStoredChat } from './components/ReportChat'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
 import { messageFromResponse } from './errors'
-import { apiUrl } from './api'
+import { apiUrl, getAnalysisStatus } from './api'
 import { formatFileSize, splitReportFiles } from './reportFiles'
 import { canMutateFiles, createRunScope } from './runScope'
 
 const FILE_INPUT_ID = 'report-images'
 const FILE_ERROR_ID = 'report-images-error'
 const SESSION_KEY = 'scanora:session'
+const ANALYSIS_POLL_INTERVAL_MS = 1000
+
+function waitForNextPoll() {
+  return new Promise((resolve) => setTimeout(resolve, ANALYSIS_POLL_INTERVAL_MS))
+}
 
 function readSession() {
   try {
@@ -211,9 +216,70 @@ function App() {
         return
       }
 
-      if (!data || data.success !== true || !data.analysis || typeof data.analysis_id !== 'string' || !data.analysis_id) {
+      if (
+        !data ||
+        data.status !== 'processing' ||
+        typeof data.task_id !== 'string' ||
+        !data.task_id
+      ) {
         setStatus('error')
         setErrorMessage('Your reports could not be analyzed. Please try again.')
+        return
+      }
+
+      let result = null
+      while (isRunCurrent()) {
+        const statusResponse = await getAnalysisStatus(data.task_id, run.signal)
+        let task = null
+        try {
+          task = await statusResponse.json()
+        } catch {
+          task = null
+        }
+
+        if (!isRunCurrent()) {
+          return
+        }
+        if (!statusResponse.ok) {
+          setStatus('error')
+          setErrorMessage(
+            messageFromResponse(
+              statusResponse,
+              task,
+              'Your reports could not be analyzed. Please try again.',
+            ),
+          )
+          return
+        }
+        if (task?.status === 'processing') {
+          await waitForNextPoll()
+          continue
+        }
+        if (task?.status === 'failed') {
+          setStatus('error')
+          setErrorMessage(
+            typeof task.error === 'string'
+              ? task.error
+              : 'Your reports could not be analyzed. Please try again.',
+          )
+          return
+        }
+        if (
+          task?.status !== 'completed' ||
+          task.success !== true ||
+          !task.analysis ||
+          typeof task.analysis_id !== 'string' ||
+          !task.analysis_id
+        ) {
+          setStatus('error')
+          setErrorMessage('Your reports could not be analyzed. Please try again.')
+          return
+        }
+        result = task
+        break
+      }
+
+      if (!isRunCurrent() || !result) {
         return
       }
 
@@ -223,8 +289,8 @@ function App() {
       } catch {
         // Persistence is best-effort.
       }
-      setAnalysis(data.analysis)
-      setAnalysisId(data.analysis_id)
+      setAnalysis(result.analysis)
+      setAnalysisId(result.analysis_id)
       setStatus('success')
     } catch (err) {
       if (!isRunCurrent()) {
