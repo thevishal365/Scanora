@@ -7,7 +7,7 @@ tokens:
   colors:
     canvas: "#F5F8F7"
     surface: "#FFFFFF"
-    surface-muted: "#EEF4F2"
+    surface-muted: "#EAF2EF"
     surface-subtle: "#F9FBFA"
     ink: "#17324D"
     ink-muted: "#557080"
@@ -30,7 +30,7 @@ tokens:
     focus-ring: "#087F8C"
 
   typography:
-    heading-font: "'Figtree', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+    heading-font: "'Source Serif 4', Georgia, 'Times New Roman', serif"
     body-font: "'Noto Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
     mono-font: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
 
@@ -93,26 +93,27 @@ Scanora synthesizes specific foundational principles from premier developer and 
 
 ## 3. Typography System
 
-The typographic voice pairs **Figtree** (a geometric yet warm and approachable display typeface) with **Noto Sans** (a universally legible, humanist workhorse).
+The typographic voice pairs **Source Serif 4** for editorial report headings with **Noto Sans** for clear, familiar interface and body text.
 
 ### Type Hierarchy Specification
 
 | Level | Font Family | Size | Weight | Line Height | Tracking | Purpose & Usage |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Hero Title** | Figtree | 32px (Desktop)<br>28px (Mobile) | 600 (SemiBold) | 1.15 | -0.02em | Main page headline on upload & result view |
-| **Section Heading** | Figtree | 20px | 600 (SemiBold) | 1.25 | -0.01em | Major section headers ("Needs Attention", "Report Chat") |
-| **Card / Item Title** | Figtree | 16px | 600 (SemiBold) | 1.35 | 0 | Test / metric names, card subheadings |
+| **Hero Title** | Source Serif 4 | 40px (Mobile)<br>64px (Desktop) | 600 (SemiBold) | 1.04 | -0.035em | Main page headline on upload |
+| **Results Title** | Source Serif 4 | 32px (Mobile)<br>48px (Desktop) | 600 (SemiBold) | 1.08 | -0.025em | Results phase headline |
+| **Section Heading** | Source Serif 4 | 20px | 600 (SemiBold) | 1.30 | 0 | Major section headers ("Findings", "Report Chat") |
+| **Card / Item Title** | Source Serif 4 | 20px | 600 (SemiBold) | 1.30 | 0 | Report and summary subheadings |
 | **Body (Default)** | Noto Sans | 16px | 400 (Regular) | 1.60 | 0 | Plain-language explanations, assistant messages |
 | **Body Emphasized** | Noto Sans | 16px | 600 (SemiBold) | 1.60 | 0 | Highlighted phrases, user chat bubbles |
 | **Supporting / UI** | Noto Sans | 14px | 400 (Regular) | 1.50 | 0 | Guidance text, dropzone notes, disclaimers |
 | **Metadata / Badges** | Noto Sans | 13px | 500 (Medium) | 1.40 | 0.01em | Reference ranges, timestamps, file sizes |
-| **Kicker / Eyebrow** | Figtree | 12px | 700 (Bold) | 1.40 | 0.08em | Small uppercase category tags (e.g., "STEP 1 OF 1") |
+| **Context Label** | Noto Sans | 14px | 600 (SemiBold) | 1.50 | 0 | Sentence-case status and section context |
 | **Metric Numerals** | Noto Sans | 15px | 600 (SemiBold) | 1.20 | 0 | Lab result values (tabular figures enabled) |
 
 ### Typographic Rules
 * Always keep paragraph measure between **45 and 72 characters**.
 * Heading weights are capped at **600 (SemiBold)** to prevent an overbearing or authoritarian posture.
-* Never use full uppercase for body sentences, medical findings, or disclaimers. Uppercase is reserved exclusively for small kickers/eyebrows.
+* Use sentence case for section labels and medical findings; reserve uppercase for the wordmark only.
 
 ---
 
@@ -126,7 +127,7 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 /* Core Canvas & Surfaces */
 --color-scanora-canvas:          #F5F8F7; /* Soft sage-tinted floor */
 --color-scanora-surface:         #FFFFFF; /* Pure white content panels */
---color-scanora-surface-muted:   #EEF4F2; /* Recessed wells, assistant messages */
+--color-scanora-surface-muted:   #EAF2EF; /* Recessed wells, assistant messages */
 --color-scanora-surface-subtle:  #F9FBFA; /* Alternate table rows / quiet borders */
 
 /* Typography & Ink */
@@ -167,15 +168,14 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 
 ## 5. Spacing, Elevation & Geometry
 
-### Spacing Scale (4px Base)
-* `4px` (`--spacing-1`): Inline micro-spacing, icon-to-label gaps.
-* `8px` (`--spacing-2`): Related text pairs, badge padding, button internal gaps.
-* `12px` (`--spacing-3`): Input vertical padding, compact card internal padding.
-* `16px` (`--spacing-4`): Standard component gap, standard card padding, mobile page margins.
-* `24px` (`--spacing-6`): Inter-card margins, panel separation.
-* `32px` (`--spacing-8`): Major section separation, desktop card padding.
-* `48px` (`--spacing-12`): Page hero top/bottom breathing room.
-* `64px` (`--spacing-16`): Maximum container separation.
+### Spacing Scale (8px Rhythm)
+* `8px`: Related labels, icon-to-text alignment, and compact stack gaps.
+* `16px`: Standard component gap, button padding, and supporting text groups.
+* `24px`: Panel padding and separation between related report sections.
+* `32px`: Major page section separation and content-frame padding.
+* `48px`: Desktop column gap and broad layout separation.
+* `64px`: Reserved for exceptional page-level breathing room.
+* Keep vertical gaps and padding on this scale; use horizontal inset values only where controls require them.
 
 ### Geometry & Radii
 * **Panels, Cards, Inputs, Primary Buttons**: `8px` (`rounded-md`). Provides clean structural framing without feeling boxy or aggressive.
@@ -184,20 +184,21 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 
 ### Elevation
 * **Flat Surfaces + Hairlines**: The default elevation model. Panels sit flat on the `#F5F8F7` canvas with a `1px solid #D6E3E0` border.
-* **Depth via Color-Step**: Distinct hierarchy is created by placing `#FFFFFF` cards or `#EEF4F2` wells on the `#F5F8F7` canvas.
+* **Depth via Color-Step**: Distinct hierarchy is created by placing `#FFFFFF` cards or `#EAF2EF` wells on the `#F5F8F7` canvas.
 * **Shadows**: Reserved exclusively for floating elements (e.g., active dropdowns or sticky status indicators) using `0 4px 16px rgba(23, 50, 77, 0.06)`. Never use heavy, blurry, dark drop shadows.
 
 ---
 
 ## 6. Layout Principles
 
-### Single Focused Column Architecture
-* **Container Max-Width**: Locked to `720px` (centered horizontally via `margin: 0 auto`).
-* **Reading Discipline**: Single vertical action path. Prevents distraction, wandering attention, and layout shifting during emotional medical reviews.
+### Shared Reading Frame
+* **Container Max-Width**: `1152px` (`72rem`) across the header, upload/results content, and footer.
+* **Upload Layout**: One column on mobile; a balanced editorial introduction and document workspace on wide screens.
+* **Results Layout**: A single left-aligned reading column capped at `1024px`, with bounded text measure and a horizontally scrollable findings table on small screens.
 * **Rhythm**:
   1. **Brand Bar**: Minimalist logo lockup + session privacy pill.
-  2. **Editorial Header**: Page title and context lead paragraph.
-  3. **Primary Surface**:
+  2. **Editorial Introduction**: Page title and context lead paragraph.
+  3. **Primary Workspace**:
      - *Phase 1 (Upload)*: Dropzone + Preview List + Action Button + Privacy Note.
      - *Phase 2 (Results)*: Overview Summary + "Needs Attention" Findings List + "No Issues" / Evaluated State + Supporting Findings + Interactive Chat + Reset Action.
   4. **Trust Anchors**: Persistent Medical Disclaimer + Footnote.
@@ -207,7 +208,7 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 ## 7. Component Patterns & Specifications
 
 ### 7.1. Brand Wordmark & Header
-* Minimalist wordmark: Scanora name in Figtree SemiBold with an integrated teal optical lens icon.
+* Minimalist wordmark: Scanora name in Noto Sans SemiBold with an integrated teal optical lens icon.
 * Right-aligned subtle session indicator: *"Private, session-only analysis"*.
 * Never show corporate banners, multi-tab navigation, or user login avatars.
 
@@ -215,13 +216,13 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 * **Primary Button ("Analyze Reports", "Send")**:
   * Height: `48px` minimum (touch target compliant).
   * Background: `--color-scanora-brand` (`#087F8C`), hover: `--color-scanora-brand-hover` (`#06636E`).
-  * Text: White, Figtree 15px, weight 600.
+  * Text: White, Noto Sans 16px, weight 600.
   * Transition: `180ms ease` for background and opacity.
   * Loading state: Retains 48px height, label changes to *"Analyzing your reports..."* with non-jumping CSS dot indicator, button is disabled with `aria-busy="true"`.
 * **Secondary Button ("Analyze more reports", "Browse files")**:
   * Height: `48px`.
   * Background: `--color-scanora-surface`, border: `1px solid --color-scanora-border`.
-  * Text: `--color-scanora-ink`, Figtree 15px, weight 600.
+  * Text: `--color-scanora-ink`, Noto Sans 16px, weight 600.
   * Hover: `--color-scanora-surface-muted`, border: `--color-scanora-brand`.
 * **Icon Controls (File remove, close)**:
   * Minimum touch target: `44px × 44px`.
@@ -229,14 +230,14 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 
 ### 7.3. Upload Area & Dropzone
 * **Resting State**:
-  * Border: `1.5px dashed --color-scanora-border-strong`.
-  * Background: `--color-scanora-surface`.
-  * Icon: Gentle document upload icon in `--color-scanora-brand`.
+  * Border: `1px dashed --color-scanora-border-strong`.
+  * Background: `--color-scanora-surface-subtle`.
+  * Icon: Gentle document upload icon on a soft teal disc.
   * Clear instructions: "Drag & drop report images here, or browse files".
   * Format & size support clearly articulated: "JPG, JPEG, PNG, or PDF up to 10 MB each. Multiple files supported."
 * **Active Drag-Over State**:
-  * Border: `1.5px solid --color-scanora-brand`.
-  * Background: `--color-scanora-surface-muted`.
+  * Border: `1px solid --color-scanora-brand`.
+  * Background: `--color-scanora-brand-soft`.
 * **Selected File Previews**:
   * Surface card for each selected file displaying thumbnail, truncated filename, formatted size (`1.4 MB`), and an accessible 44px remove button.
 
@@ -246,8 +247,8 @@ Colors are layered systematically to direct focus, establish certainty boundarie
   * Badge fill: `--color-scanora-attention-soft`, text: `--color-scanora-attention`, border: `--color-scanora-attention-border`.
   * Explicit text label: *"Needs Attention"*.
 * **Data Grid Layout**:
-  * **Test / Metric Name**: Figtree 16px SemiBold.
-  * **Observed Value**: Figtree/Noto 16px SemiBold in `--color-scanora-ink` (or `--color-scanora-attention` when out of range).
+  * **Test / Metric Name**: Noto Sans 16px SemiBold.
+  * **Observed Value**: Noto Sans 16px SemiBold in `--color-scanora-ink` (or `--color-scanora-attention` when out of range).
   * **Reference Range**: 13px Noto Sans Medium in `--color-scanora-ink-muted` (e.g., *"Normal reference: 4.0 - 11.0 ×10^3/µL"*).
   * **Plain-Language Explanation**: 15px Noto Sans Regular in `--color-scanora-ink` explaining *why* it is flagged (e.g., "The report notes this value is slightly above the laboratory reference interval.").
 
@@ -308,14 +309,15 @@ Scanora is an informational aid, not a diagnostic medical device or clinical aut
 ## 10. Responsive Behavior & Breakpoints
 
 * **Mobile (< 640px)**:
-  * Page padding: `24px 16px 32px`.
+  * Page padding: `16px` horizontally with `16px` top spacing.
   * Single-column full-width layouts (`width: 100%`).
   * Primary and secondary buttons expand to `w-full` for easy thumb access.
-  * Title scales gracefully from `32px` to `28px`.
+  * The upload workspace and its introduction stack in reading order.
 * **Tablet / Desktop (≥ 640px)**:
-  * Page padding: `48px 24px 48px`.
-  * Max container width locked to `720px`.
-  * Spacing expands to 32px/48px section separators.
+  * Page padding grows to `24px` horizontally, then `32px` on wide screens.
+  * Header, workspace, results, and footer share a `1152px` max-width frame.
+  * Upload changes to a two-column introduction/workspace grid at `1024px`.
+  * Major sections use 32px/48px separation on the 8px spacing rhythm.
   * Tabular metrics layout displays value and reference range side-by-side.
 
 ---
@@ -326,7 +328,7 @@ Scanora is an informational aid, not a diagnostic medical device or clinical aut
 * Keep the background warm and neutral (`#F5F8F7`) to maintain an anti-glare reading environment.
 * Pair every out-of-range finding with its source reference interval printed on the report.
 * Use `8px` corner radius consistently across cards, panels, and buttons.
-* Maintain a single centered column (`720px`) for focused reading.
+* Keep all page sections aligned to the shared `1152px` frame; bound long report text to a readable measure.
 * Use hairline borders (`1px solid #D6E3E0`) for crisp visual grouping.
 
 ### Don't

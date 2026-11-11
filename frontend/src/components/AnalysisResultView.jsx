@@ -23,30 +23,33 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
   }, [])
 
   return (
-    <div className="scanora-results mt-6 text-left sm:mt-7">
-      <div className="scanora-results-heading border-b border-scanora-border-subtle pb-4">
+    <div className="scanora-results flex flex-col gap-6 text-left">
+      <div className="scanora-results-heading flex flex-col gap-4 border-b border-scanora-border-subtle pb-6">
         <span className="scanora-kicker">Analysis Complete</span>
         <h2
           id="report-findings-heading"
           tabIndex={-1}
-          className="mt-1 font-heading text-xl font-semibold leading-tight text-scanora-text outline-none sm:text-2xl"
+          className="scanora-results-title font-heading font-semibold text-scanora-text outline-none"
         >
           Findings that may need your attention
         </h2>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-scanora-muted">
+        <p className="scanora-supporting-copy max-w-2xl text-scanora-muted">
           Here are the results from your report that may need your attention.
         </p>
       </div>
 
       {analysis.overall_summary && (
-        <section className="mt-5" aria-labelledby="overall-summary-heading">
+        <section
+          className="scanora-summary-card flex flex-col gap-4"
+          aria-labelledby="overall-summary-heading"
+        >
           <h3
             id="overall-summary-heading"
-            className="font-heading text-base font-semibold text-scanora-text"
+            className="scanora-section-title font-heading font-semibold text-scanora-text"
           >
             Overall summary
           </h3>
-          <p className="mt-1 text-sm leading-relaxed text-scanora-muted">
+          <p className="scanora-body-copy text-scanora-muted">
             {analysis.overall_summary}
           </p>
         </section>
@@ -55,29 +58,29 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
       {reportGroups.map(({ key, name, report }) => (
         <section
           key={key}
-          className="mt-5 border-t border-scanora-border-subtle pt-4"
+          className="scanora-report-section flex flex-col gap-4 border-t border-scanora-border-subtle pt-6"
           aria-labelledby={`report-details-${key}`}
         >
           <h3
             id={`report-details-${key}`}
-            className="font-heading text-base font-semibold text-scanora-text"
+            className="scanora-section-title font-heading font-semibold text-scanora-text"
           >
             {name}
           </h3>
           {report.summary && (
-            <p className="mt-2 text-sm leading-relaxed text-scanora-muted">
+            <p className="scanora-body-copy text-scanora-muted">
               {report.summary}
             </p>
           )}
           {report.key_findings?.length > 0 && (
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-relaxed text-scanora-muted">
+            <ul className="flex flex-col gap-2 list-disc pl-5 text-sm leading-relaxed text-scanora-muted">
               {report.key_findings.map((finding, index) => (
                 <li key={`${key}-finding-${index}`}>{finding}</li>
               ))}
             </ul>
           )}
           {report.simple_explanation && (
-            <p className="mt-2 text-sm leading-relaxed text-scanora-text">
+            <p className="scanora-body-copy text-scanora-text">
               <span className="font-semibold">Explanation: </span>
               {report.simple_explanation}
             </p>
@@ -86,83 +89,86 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
       ))}
 
       {hasAttention ? (
-        <>
-          <section className="mt-5" aria-label="Attention-worthy findings">
-            <div className="scanora-finding-table scanora-panel overflow-x-auto">
-              <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-scanora-border-subtle bg-scanora-surface-muted">
+        <section className="scanora-findings-section" aria-label="Attention-worthy findings">
+          <div
+            className="scanora-finding-table scanora-panel overflow-x-auto"
+            role="region"
+            aria-label="Scrollable findings table"
+            tabIndex={0}
+          >
+            <table className="w-full min-w-[42rem] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-scanora-border-subtle bg-scanora-surface-muted">
                     <th
                       scope="col"
-                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                      className="px-3 py-2 font-sans text-xs font-semibold text-scanora-muted sm:px-4"
                     >
                       Test / Parameter
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                      className="px-3 py-2 font-sans text-xs font-semibold text-scanora-muted sm:px-4"
                     >
                       Result
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                      className="px-3 py-2 font-sans text-xs font-semibold text-scanora-muted sm:px-4"
                     >
                       Reference Range
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-2 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
+                      className="px-3 py-2 font-sans text-xs font-semibold text-scanora-muted sm:px-4"
                     >
                       Status
                     </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attentionGroups.map((group) => (
-                    <Fragment key={group.key}>
-                      {attentionGroups.length > 1 && (
-                        <tr>
-                          <th
-                            scope="colgroup"
-                            colSpan={4}
-                            className="border-b border-scanora-border-subtle bg-scanora-surface-subtle px-3 py-1.5 font-heading text-xs font-semibold tracking-wider text-scanora-muted uppercase sm:px-4"
-                          >
-                            {group.name}
-                          </th>
-                        </tr>
-                      )}
-                      {group.values.map((item, index) => (
-                        <tr
-                          key={`${group.key}-${item.name}-${index}`}
-                          className="border-b border-scanora-border-subtle last:border-b-0"
+                </tr>
+              </thead>
+              <tbody>
+                {attentionGroups.map((group) => (
+                  <Fragment key={group.key}>
+                    {attentionGroups.length > 1 && (
+                      <tr>
+                        <th
+                          scope="colgroup"
+                          colSpan={4}
+                          className="border-b border-scanora-border-subtle bg-scanora-surface-subtle px-3 py-2 font-sans text-xs font-semibold text-scanora-muted sm:px-4"
                         >
-                          <td className="px-3 py-2 font-heading font-semibold text-sm text-scanora-text uppercase sm:px-4">
-                            {item.name}
-                          </td>
-                          <td className="scanora-finding-value px-3 py-2 font-heading font-semibold whitespace-nowrap text-sm text-scanora-text tabular-nums sm:px-4 sm:text-base">
-                            {item.value}
-                            {item.unit && !isMissingLabel(item.unit)
-                              ? ` ${item.unit}`
-                              : ''}
-                          </td>
-                          <td className="px-3 py-2 text-xs whitespace-nowrap text-scanora-muted sm:px-4 sm:text-sm">
-                            {formatReferenceLine(item)}
-                          </td>
-                          <td className="px-3 py-2 text-xs leading-relaxed text-scanora-attention sm:px-4 sm:text-sm">
-                            {attentionNote(item)}
-                          </td>
-                        </tr>
-                      ))}
-                    </Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </>
+                          {group.name}
+                        </th>
+                      </tr>
+                    )}
+                    {group.values.map((item, index) => (
+                      <tr
+                        key={`${group.key}-${item.name}-${index}`}
+                        className="border-b border-scanora-border-subtle last:border-b-0"
+                      >
+                        <td className="px-3 py-2 font-sans font-semibold text-sm text-scanora-text sm:px-4">
+                          {item.name}
+                        </td>
+                        <td className="scanora-finding-value px-3 py-2 font-sans font-semibold whitespace-nowrap text-sm text-scanora-text tabular-nums sm:px-4 sm:text-base">
+                          {item.value}
+                          {item.unit && !isMissingLabel(item.unit)
+                            ? ` ${item.unit}`
+                            : ''}
+                        </td>
+                        <td className="px-3 py-2 text-xs whitespace-nowrap text-scanora-muted sm:px-4 sm:text-sm">
+                          {formatReferenceLine(item)}
+                        </td>
+                        <td className="px-3 py-2 text-xs leading-relaxed text-scanora-attention sm:px-4 sm:text-sm">
+                          {attentionNote(item)}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       ) : (
-        <p className="scanora-success-callout mt-5 p-4 text-sm leading-relaxed sm:p-5">
+        <p className="scanora-success-callout p-4 text-sm leading-relaxed sm:p-6">
           No test values were flagged based on the reference ranges visible in
           the reports. This does not rule out health concerns.
         </p>
@@ -173,8 +179,7 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
         analysisId={analysisId}
       />
 
-      <div className="mt-7">
-        <button
+      <button
           type="button"
           onClick={onStartOver}
           className="scanora-button-secondary scanora-focus-ring flex w-full cursor-pointer items-center justify-center gap-2"
@@ -194,8 +199,7 @@ function AnalysisResultView({ analysis, analysisId, onStartOver }) {
             />
           </svg>
           Analyze More Reports
-        </button>
-      </div>
+      </button>
     </div>
   )
 }

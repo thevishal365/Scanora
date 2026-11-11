@@ -104,6 +104,25 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('upload landing page', () => {
+  it('shows the guided upload steps and session privacy note', () => {
+    render(<App />)
+
+    expect(screen.getByRole('link', { name: 'Scanora home' })).toBeTruthy()
+    expect(screen.getByText('Session only')).toBeTruthy()
+    expect(screen.getByText('Clinical Document Assistant')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Start with a document' })).toBeTruthy()
+    expect(screen.getByText('Up to 10 files')).toBeTruthy()
+    expect(screen.getByText('Drag and drop your files here')).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Your reports are only used for this session and are not saved to an account.',
+      ),
+    ).toBeTruthy()
+    expect(screen.getByText('Scanora helps make report language easier to understand.')).toBeTruthy()
+  })
+})
+
 describe('analysis concurrency guards', () => {
   it('blocks add/remove/clear while analysis is in flight', async () => {
     const { container } = render(<App />)

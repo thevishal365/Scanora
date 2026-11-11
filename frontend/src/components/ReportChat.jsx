@@ -263,34 +263,34 @@ function ReportChat({ analysisId, prefillRequest }) {
   }
 
   return (
-    <section className="mt-6 border-t border-scanora-border-subtle pt-5" aria-labelledby="report-chat-heading">
-      <div className="scanora-chat-panel scanora-panel p-4 sm:p-5">
+    <section className="border-t border-scanora-border-subtle pt-6" aria-labelledby="report-chat-heading">
+      <div className="scanora-chat-panel flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <span className="h-1.5 w-1.5 rounded-full bg-scanora-primary" aria-hidden="true" />
           <h3
             id="report-chat-heading"
-            className="font-heading text-base font-semibold text-scanora-text sm:text-lg"
+            className="scanora-section-title font-heading font-semibold text-scanora-text"
           >
             Ask Questions About Your Report
           </h3>
         </div>
 
-        <p className="mt-1 max-w-xl text-xs leading-relaxed text-scanora-muted sm:text-sm">
+        <p className="scanora-supporting-copy max-w-2xl text-scanora-muted">
           Ask questions regarding any tests or notes visible above. Scanora explains report contents but does not diagnose or recommend treatments.
         </p>
 
         {prefillRequest?.finding && (
-          <div className="mt-3">
-            <p className="text-xs font-medium text-scanora-muted">
+          <div className="flex flex-col gap-2">
+            <p className="scanora-supporting-copy font-medium text-scanora-muted">
               Questions about {prefillRequest.finding.name}
             </p>
-            <ul className="mt-2 flex flex-wrap gap-2">
+            <ul className="scanora-question-suggestions flex flex-wrap gap-2">
               {findingQuestionSuggestions(prefillRequest.finding).map((question) => (
                 <li key={question}>
                   <button
                     type="button"
                     onClick={() => handleSuggestedQuestion(question)}
-                    className="scanora-focus-ring inline-flex min-h-9 cursor-pointer items-center rounded-full border border-scanora-border bg-scanora-surface px-3 py-1.5 text-xs text-scanora-muted transition-colors hover:border-scanora-brand hover:text-scanora-brand"
+                    className="scanora-focus-ring inline-flex min-h-11 cursor-pointer items-center rounded-full border border-scanora-border bg-scanora-surface px-4 py-2 text-sm text-scanora-muted transition-colors hover:border-scanora-brand hover:text-scanora-brand"
                   >
                     {question}
                   </button>
@@ -301,41 +301,41 @@ function ReportChat({ analysisId, prefillRequest }) {
         )}
 
         {!analysisId && (
-          <p className="mt-3 text-xs leading-relaxed text-scanora-muted sm:text-sm">
+          <p className="scanora-supporting-copy text-scanora-muted">
             Chat is unavailable for analyses from before this update. Analyze your reports again to ask questions.
           </p>
         )}
 
         {isExpired && (
-          <p className="mt-3 text-xs leading-relaxed text-scanora-muted sm:text-sm">
+          <p className="scanora-supporting-copy text-scanora-muted">
             This analysis has expired. Analyze your reports again to keep asking questions.
           </p>
         )}
 
         {messages.length > 0 && (
-          <ul className="mt-4 space-y-3" aria-live="polite">
+          <ul className="flex flex-col gap-4" aria-live="polite">
             {messages.map((item) => (
               <li
                 key={item.id}
-                className={`scanora-chat-message max-w-[88%] rounded-lg p-3 text-xs leading-relaxed sm:text-sm ${
+                className={`scanora-chat-message flex flex-col gap-2 max-w-[88%] rounded-lg p-4 text-sm leading-relaxed ${
                   item.role === 'user'
                     ? 'ml-auto border border-scanora-brand/20 bg-scanora-brand-soft text-scanora-ink'
                     : 'mr-auto border border-scanora-border bg-scanora-surface-muted text-scanora-ink'
                 }`}
               >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-[10px] font-semibold tracking-wider text-scanora-muted uppercase font-heading">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="scanora-file-limit font-semibold text-scanora-muted">
                     {item.role === 'user' ? 'You' : 'Scanora'}
                   </span>
                   {item.failed && (
-                    <span className="text-[10px] font-semibold text-scanora-error">
+                    <span className="text-xs font-semibold text-scanora-error">
                       Not sent
                     </span>
                   )}
                 </div>
                 <p className="whitespace-pre-wrap">{item.text}</p>
                 {item.role === 'assistant' && (
-                  <p className="mt-2 border-t border-scanora-border-subtle pt-2 text-[11px] leading-relaxed text-scanora-muted">
+                  <p className="border-t border-scanora-border-subtle pt-2 text-xs leading-relaxed text-scanora-muted">
                     Educational information only, not a diagnosis or treatment
                     recommendation. Please discuss your result with a qualified
                     healthcare professional.
@@ -347,21 +347,21 @@ function ReportChat({ analysisId, prefillRequest }) {
         )}
 
         {isSending && (
-          <div role="status" className="mt-3 flex items-center gap-2 text-xs font-medium text-scanora-muted">
+          <div role="status" className="flex items-center gap-2 text-xs font-medium text-scanora-muted">
             <span className="h-1.5 w-1.5 rounded-full bg-scanora-primary animate-pulse" aria-hidden="true" />
             <span>Consulting report context<span className="analyzing-dots" aria-hidden="true" /></span>
           </div>
         )}
 
         {errorMessage && (
-          <div role="alert" className="scanora-error mt-3 px-3 py-2 text-xs leading-relaxed">
+          <div role="alert" className="scanora-error flex flex-col gap-2 px-4 py-4 text-sm leading-relaxed">
             <p className="break-words">{errorMessage}</p>
             {failedMessage && !isExpired && (
               <button
                 type="button"
                 onClick={() => sendMessage(failedMessage)}
                 disabled={isSending}
-                className="scanora-focus-ring mt-2 inline-flex cursor-pointer items-center rounded-md border border-scanora-error-border bg-scanora-surface px-3 py-1.5 text-xs font-medium text-scanora-error transition-colors duration-180 hover:bg-scanora-surface-muted disabled:opacity-60"
+                className="scanora-focus-ring inline-flex min-h-11 cursor-pointer items-center rounded-md border border-scanora-error-border bg-scanora-surface px-4 py-2 text-sm font-medium text-scanora-error transition-colors duration-180 hover:bg-scanora-surface-muted disabled:opacity-60"
               >
                 Try again
               </button>
@@ -372,7 +372,7 @@ function ReportChat({ analysisId, prefillRequest }) {
         <label htmlFor="report-chat-input" className="sr-only">
           Ask a question about your report findings
         </label>
-        <div className="scanora-chat-controls mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-end">
+        <div className="scanora-chat-controls">
           <textarea
             id="report-chat-input"
             ref={composerRef}
@@ -383,7 +383,7 @@ function ReportChat({ analysisId, prefillRequest }) {
             rows={2}
             disabled={isSending || !analysisId || isExpired}
             aria-describedby="report-chat-hint"
-            className="scanora-focus-ring min-h-[48px] w-full resize-y rounded-lg border border-scanora-border bg-scanora-surface px-3 py-2 text-xs text-scanora-text placeholder:text-scanora-muted disabled:opacity-60 sm:text-sm"
+            className="scanora-focus-ring min-h-12 w-full resize-y rounded-lg border border-scanora-border bg-scanora-surface px-4 py-2 text-sm text-scanora-text placeholder:text-scanora-muted disabled:opacity-60"
           />
 
           <button
@@ -406,7 +406,7 @@ function ReportChat({ analysisId, prefillRequest }) {
             <span className="hidden sm:inline">Ask</span>
           </button>
         </div>
-        <p id="report-chat-hint" className="mt-2 text-[11px] leading-relaxed text-scanora-faint sm:text-xs">
+        <p id="report-chat-hint" className="scanora-file-limit text-scanora-faint">
           Press Enter to send, Shift + Enter for a new line.
         </p>
       </div>

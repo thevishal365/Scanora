@@ -2,15 +2,15 @@ function ImagePreview({ item, onRemove, disabled }) {
   const isPdf = item.file.type === 'application/pdf'
 
   return (
-    <li className="scanora-file-item scanora-panel-interactive flex items-center justify-between gap-3 p-3">
-      <div className="flex min-w-0 items-center gap-3">
+    <li className="scanora-file-item scanora-panel-interactive flex items-center justify-between gap-4 p-4">
+      <div className="flex min-w-0 items-center gap-2">
         {isPdf ? (
           <span
-            className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-scanora-border bg-scanora-surface-muted text-scanora-primary"
+            className="inline-flex size-12 shrink-0 items-center justify-center rounded-md border border-scanora-border bg-scanora-surface-muted text-scanora-primary"
             aria-hidden="true"
           >
             <svg
-              className="h-5 w-5"
+              className="size-5"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth="1.75"
@@ -27,14 +27,14 @@ function ImagePreview({ item, onRemove, disabled }) {
           <img
             src={item.previewUrl}
             alt={`Preview of ${item.file.name}`}
-            className="h-12 w-12 shrink-0 rounded-md border border-scanora-border object-cover bg-scanora-surface-muted"
+            className="size-12 shrink-0 rounded-md border border-scanora-border object-cover bg-scanora-surface-muted"
           />
         )}
-        <div className="min-w-0 flex-1 text-left">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
           <p className="truncate text-sm font-medium text-scanora-text" title={item.file.name}>
             {item.file.name}
           </p>
-          <p className="mt-0.5 text-xs font-medium text-scanora-muted">
+          <p className="scanora-file-limit text-scanora-muted">
             {item.sizeLabel}
           </p>
         </div>
@@ -46,10 +46,10 @@ function ImagePreview({ item, onRemove, disabled }) {
         disabled={disabled}
         aria-label={`Remove ${item.file.name}`}
         title={`Remove ${item.file.name}`}
-        className="scanora-focus-ring inline-flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-all duration-180 hover:bg-scanora-error-soft hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
+        className="scanora-focus-ring inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-colors duration-180 hover:bg-scanora-error-soft hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
       >
         <svg
-          className="h-5 w-5"
+          className="size-5"
           fill="none"
           viewBox="0 0 24 24"
           strokeWidth="2"

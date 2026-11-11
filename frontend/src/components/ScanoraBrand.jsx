@@ -1,7 +1,7 @@
 function ScanoraBrand() {
   return (
     <a href="/" aria-label="Scanora home" className="scanora-brand inline-flex items-center">
-      <div className="inline-flex items-center gap-2 font-heading text-lg font-semibold tracking-wider text-scanora-primary uppercase sm:gap-2.5 sm:text-xl">
+      <div className="inline-flex items-center gap-2 font-sans text-lg font-semibold tracking-wider text-scanora-primary uppercase sm:text-xl">
         <svg
           className="scanora-brand-mark h-7 w-7 shrink-0 sm:h-8 sm:w-8"
           viewBox="0 0 32 32"

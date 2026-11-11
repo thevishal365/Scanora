@@ -21,19 +21,21 @@ function AnalysisProgress({ stages = ANALYSIS_STAGES, advanceMs = STAGE_ADVANCE_
       role="status"
       aria-live="polite"
       aria-label={`Analysis in progress: ${current.label}`}
-      className="scanora-panel mt-4 p-4 sm:p-5"
+      className="scanora-panel flex flex-col gap-4 p-4 sm:p-6"
     >
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-2 rounded-full bg-scanora-primary animate-pulse" aria-hidden="true" />
-        <p className="font-heading text-sm font-semibold text-scanora-text sm:text-base">
-          {current.label}
-          <span className="analyzing-dots" aria-hidden="true" />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-scanora-primary animate-pulse" aria-hidden="true" />
+          <p className="font-heading text-sm font-semibold text-scanora-text sm:text-base">
+            {current.label}
+            <span className="analyzing-dots" aria-hidden="true" />
+          </p>
+        </div>
+        <p className="scanora-supporting-copy text-scanora-muted">
+          {current.hint}
         </p>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-scanora-muted sm:text-sm">
-        {current.hint}
-      </p>
-      <ol className="mt-4 space-y-2" aria-label="Analysis stages">
+      <ol className="flex flex-col gap-2" aria-label="Analysis stages">
         {stages.map((stage, index) => {
           const done = index < stageIndex
           const active = index === stageIndex
@@ -41,11 +43,11 @@ function AnalysisProgress({ stages = ANALYSIS_STAGES, advanceMs = STAGE_ADVANCE_
             <li
               key={stage.id}
               aria-current={active ? 'step' : undefined}
-              className={`flex items-center gap-3 text-xs sm:text-sm ${
+              className={`flex items-center gap-2 text-sm ${
                 active ? 'font-medium text-scanora-text' : 'text-scanora-muted'
               }`}
             >
-              <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors ${
+              <div               className={`flex size-6 shrink-0 items-center justify-center rounded-full transition-colors ${
                 done
                   ? 'bg-scanora-success text-white'
                   : active

@@ -54,6 +54,8 @@ describe('attention-focused results', () => {
     expect(within(findings).getByText('Reference: 4.7–6.2 million/cmm')).toBeTruthy()
     expect(within(findings).getByText('Below the provided reference range.')).toBeTruthy()
     expect(within(findings).queryByText('Hemoglobin')).toBeNull()
+    const scrollRegion = within(findings).getByRole('region', { name: 'Scrollable findings table' })
+    expect(scrollRegion.tabIndex).toBe(0)
     const table = within(findings).getByRole('table')
     expect(within(table).getByRole('columnheader', { name: 'Test / Parameter' })).toBeTruthy()
     expect(within(table).getByRole('columnheader', { name: 'Result' })).toBeTruthy()

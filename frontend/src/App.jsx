@@ -313,43 +313,67 @@ function App() {
 
   return (
     <main className="scanora-page">
-      <div className="scanora-content">
-        {/* Top brand header bar */}
-        <header className="scanora-header flex items-center justify-between border-b border-scanora-border-subtle pb-3.5">
+      <div
+        className={`scanora-content mx-auto flex w-full max-w-6xl flex-col gap-8 ${
+          showResults ? 'scanora-content-results' : 'scanora-content-upload'
+        }`}
+      >
+        <header className="scanora-header flex items-center justify-between border-b border-scanora-border-subtle pb-4">
           <ScanoraBrand />
-          <div className="flex items-center">
-            <span className="scanora-session-badge inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium">
-              <svg
-                className="h-3.5 w-3.5"
-                viewBox="0 0 16 16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                aria-hidden="true"
-              >
-                <circle cx="8" cy="8" r="5.5" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 4.8V8l2.1 1.3" />
-              </svg>
-              Session only
-            </span>
-          </div>
+          <span className="scanora-session-badge inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium">
+            <svg
+              className="size-4"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              aria-hidden="true"
+            >
+              <circle cx="8" cy="8" r="5.5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 4.8V8l2.1 1.3" />
+            </svg>
+            Session only
+          </span>
         </header>
 
         <div className={`scanora-home-grid${showResults ? ' scanora-results-layout' : ''}`}>
           {/* Hero title & editorial lead */}
-          <div className="scanora-hero">
+          <div className="scanora-hero flex flex-col gap-4">
             <p className="scanora-kicker">Clinical Document Assistant</p>
-            <h1 id="upload-heading" tabIndex={-1} className="font-heading mt-2 text-[28px] font-semibold leading-tight text-scanora-text outline-none sm:text-[32px]">
+            <h1 id="upload-heading" tabIndex={-1} className="scanora-page-title font-heading font-semibold text-scanora-text outline-none">
               Understand Your Reports, Simply.
             </h1>
             {!showResults && (
-              <p className="mt-2 text-xs leading-relaxed text-scanora-muted sm:text-sm">
-                Upload diagnostic or lab report files. Scanora highlights attention-worthy values and explains findings in clear, non-diagnostic terms.
-              </p>
+              <>
+                <p className="scanora-hero-copy text-scanora-muted">
+                  Medical reports can be hard to follow. Get clear, approachable explanations of the information in your diagnostic reports.
+                </p>
+                <ul className="scanora-reassurance flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-scanora-muted">
+                  <li>
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Clear explanations
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    Session-based
+                  </li>
+                  <li>
+                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" />
+                      <path d="M10 6v4l2.5 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    No account needed
+                  </li>
+                </ul>
+              </>
             )}
           </div>
 
-          <div className="scanora-primary-column">
+          <div className="scanora-primary-column flex min-w-0 flex-col gap-4">
             {showResults ? (
               <AnalysisResultView
                 analysis={analysis}
@@ -357,7 +381,20 @@ function App() {
                 onStartOver={startOver}
               />
             ) : (
-              <div className="scanora-workspace w-full">
+              <section className="scanora-workspace scanora-upload-card flex w-full flex-col gap-4" aria-labelledby="upload-card-heading">
+                <div className="scanora-upload-heading flex flex-col gap-2">
+                  <p className="scanora-kicker">Your reports</p>
+                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <h2 id="upload-card-heading" className="scanora-card-title font-heading font-semibold text-scanora-text">
+                      Start with a document
+                    </h2>
+                    <span className="scanora-file-limit shrink-0 text-scanora-muted">Up to 10 files</span>
+                  </div>
+                  <p className="scanora-supporting-copy text-scanora-muted">
+                    Add one or more lab or diagnostic reports to get started.
+                  </p>
+                </div>
+
                 <UploadArea
                   inputId={FILE_INPUT_ID}
                   errorId={FILE_ERROR_ID}
@@ -389,7 +426,7 @@ function App() {
                   onClick={handleAnalyze}
                   disabled={isBusy}
                   aria-busy={isBusy}
-                  className="scanora-button-primary scanora-focus-ring mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-2"
+                  className="scanora-button-primary scanora-upload-submit scanora-focus-ring inline-flex w-full cursor-pointer items-center justify-center gap-2"
                 >
                   {isBusy ? (
                     <>
@@ -400,7 +437,7 @@ function App() {
                     <>
                       <span>Analyze Reports</span>
                       <svg
-                        className="h-4 w-4"
+                        className="size-4"
                         fill="none"
                         viewBox="0 0 24 24"
                         strokeWidth="2.5"
@@ -416,10 +453,10 @@ function App() {
                 {isBusy && <AnalysisProgress />}
 
                 <PrivacyNote />
-              </div>
+              </section>
             )}
 
-            <Disclaimer />
+            {showResults && <Disclaimer />}
           </div>
         </div>
 

@@ -16,14 +16,14 @@ function UploadArea({
   const hasErrors = errors && errors.length > 0
 
   return (
-    <div className="w-full">
+    <div className="flex w-full flex-col gap-2">
       <label
         htmlFor={inputId}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         aria-disabled={disabled ? true : undefined}
-        className={`scanora-dropzone group relative flex min-h-[176px] flex-col items-center justify-center rounded-lg border px-5 py-6 text-center transition-all duration-180 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-scanora-primary sm:min-h-[190px] sm:py-7 ${
+        className={`scanora-dropzone group relative flex flex-col items-center justify-center gap-4 border text-center transition-colors duration-180 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-scanora-primary ${
           disabled
             ? 'cursor-default border-dashed border-scanora-border bg-scanora-surface-muted opacity-60'
             : isDragging
@@ -46,17 +46,16 @@ function UploadArea({
           }}
         />
 
-        {/* Clinical Document Lens Glyphs */}
         <div
           aria-hidden="true"
-          className={`scanora-upload-glyph mb-3 flex h-12 w-12 items-center justify-center rounded-lg transition-all duration-180 sm:h-13 sm:w-13 ${
+          className={`scanora-upload-glyph flex size-14 items-center justify-center rounded-full transition-colors duration-180 ${
             isDragging
               ? 'bg-scanora-primary text-white'
               : 'bg-scanora-surface-muted text-scanora-primary group-hover:bg-scanora-brand-soft'
           }`}
         >
           <svg
-            className="h-6 w-6 sm:h-6 sm:w-6"
+            className="size-7"
             fill="none"
             viewBox="0 0 24 24"
             strokeWidth="1.75"
@@ -65,33 +64,32 @@ function UploadArea({
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+              d="M7.5 18.5a4.5 4.5 0 01-.58-8.96A6 6 0 0118.6 8.6a5 5 0 01.4 9.9M12 21v-9m0 0-3.5 3.5M12 12l3.5 3.5"
             />
-            <circle cx="14" cy="14" r="3.5" strokeWidth="1.75" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 16.5L19 19" strokeWidth="1.75" />
           </svg>
         </div>
 
-        <span className="font-heading text-base font-semibold text-scanora-text sm:text-[17px]">
-          {disabled
-            ? 'Analysis in progress…'
-            : isDragging
-              ? 'Drop report images or PDFs to attach'
-              : 'Drop report images or PDFs here'}
-        </span>
-
-        <span className="mt-1 text-xs text-scanora-muted sm:text-sm">
-          or{' '}
-          <span className="font-medium text-scanora-primary underline decoration-scanora-primary/40 underline-offset-2 group-hover:decoration-scanora-primary">
-            browse from your device
+        <div className="scanora-dropzone-copy flex flex-col items-center gap-2">
+          <span className="scanora-dropzone-title font-heading font-semibold text-scanora-text">
+            {disabled
+              ? 'Analysis in progress…'
+              : isDragging
+                ? 'Drop report images or PDFs to attach'
+                : 'Drag and drop your files here'}
           </span>
-        </span>
+          <span className="scanora-supporting-copy text-scanora-muted">
+            or{' '}
+            <span className="font-medium text-scanora-primary underline decoration-scanora-primary/40 underline-offset-2 group-hover:decoration-scanora-primary">
+              browse from your device
+            </span>
+          </span>
+        </div>
 
         <span
           id={`${inputId}-hint`}
-          className="mt-3 text-[11px] leading-normal text-scanora-faint sm:text-xs"
+          className="scanora-dropzone-hint scanora-file-limit text-scanora-faint"
         >
-          JPG, JPEG, PNG, or PDF • Up to {maxSizeLabel} per file • Up to {MAX_FILES} files ({totalSizeLabel} total)
+          JPG, JPEG, PNG, or PDF · {maxSizeLabel} per file · {totalSizeLabel} total · Up to {MAX_FILES} files
         </span>
       </label>
 
@@ -100,7 +98,7 @@ function UploadArea({
         role="alert"
         className={
           hasErrors
-            ? 'scanora-error mt-2.5 space-y-1 px-3 py-2 text-xs leading-relaxed sm:text-sm'
+            ? 'scanora-error flex flex-col gap-2 px-4 py-4 text-sm leading-relaxed'
             : 'sr-only'
         }
       >
