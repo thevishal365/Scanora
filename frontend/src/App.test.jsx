@@ -105,7 +105,7 @@ afterEach(() => {
 })
 
 describe('upload landing page', () => {
-  it('shows the guided upload steps and session privacy note', () => {
+  it('shows the guided upload steps and consistent reassurance features', () => {
     render(<App />)
 
     expect(screen.getByRole('link', { name: 'Scanora home' })).toBeTruthy()
@@ -114,12 +114,24 @@ describe('upload landing page', () => {
     expect(screen.getByRole('heading', { name: 'Start with a document' })).toBeTruthy()
     expect(screen.getByText('Up to 10 files')).toBeTruthy()
     expect(screen.getByText('Drag and drop your files here')).toBeTruthy()
+    const reassuranceFeatures = ['Clear explanations', 'Session-based', 'No account needed']
+    for (const feature of reassuranceFeatures) {
+      expect(screen.getByText(feature).closest('li').querySelector('svg')).toBeTruthy()
+    }
     expect(
-      screen.getByText(
+      screen.queryByText(
         'Your reports are only used for this session and are not saved to an account.',
       ),
-    ).toBeTruthy()
-    expect(screen.getByText('Scanora helps make report language easier to understand.')).toBeTruthy()
+    ).toBeNull()
+    expect(
+      screen.queryByText('Scanora helps make report language easier to understand.'),
+    ).toBeNull()
+    expect(screen.getByText('Designed by').closest('p').className).toContain(
+      'scanora-footer-author',
+    )
+    expect(screen.getByText('Designed by').closest('p').className).toContain(
+      'items-center',
+    )
   })
 })
 

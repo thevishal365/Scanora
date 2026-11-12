@@ -4,7 +4,6 @@ import AnalysisProgress from './components/AnalysisProgress'
 import Disclaimer from './components/Disclaimer'
 import ImagePreviewList from './components/ImagePreviewList'
 import PageFooter from './components/PageFooter'
-import PrivacyNote from './components/PrivacyNote'
 import { CHAT_STORAGE_KEY, clearStoredChat } from './components/ReportChat'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
@@ -346,7 +345,7 @@ function App() {
             {!showResults && (
               <>
                 <p className="scanora-hero-copy text-scanora-muted">
-                  Medical reports can be hard to follow. Get clear, approachable explanations of the information in your diagnostic reports.
+                  We help simplify medical information so you can better understand what your reports are telling you.
                 </p>
                 <ul className="scanora-reassurance flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-scanora-muted">
                   <li>
@@ -363,8 +362,7 @@ function App() {
                   </li>
                   <li>
                     <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                      <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.6" />
-                      <path d="M10 6v4l2.5 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                     No account needed
                   </li>
@@ -451,8 +449,6 @@ function App() {
                 </button>
 
                 {isBusy && <AnalysisProgress />}
-
-                <PrivacyNote />
               </section>
             )}
 

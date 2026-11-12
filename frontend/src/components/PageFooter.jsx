@@ -1,7 +1,6 @@
 function PageFooter() {
   return (
     <footer className="scanora-footer pb-2 text-xs text-scanora-faint">
-      <p className="scanora-footer-credit">Scanora helps make report language easier to understand.</p>
       <p className="scanora-footer-author inline-flex items-center gap-2">
         Designed by
         <a

@@ -154,7 +154,7 @@ label {
 
 .scanora-page-title {
   max-width: 16ch;
-  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-size: clamp(2.25rem, 5vw, 4rem);
   letter-spacing: -0.035em;
   line-height: 1.04;
   text-wrap: balance;
@@ -162,7 +162,7 @@ label {
 
 .scanora-results-title {
   max-width: 22ch;
-  font-size: clamp(2rem, 4vw, 3rem);
+  font-size: clamp(1.875rem, 4vw, 3rem);
   letter-spacing: -0.025em;
   line-height: 1.08;
   text-wrap: balance;
@@ -225,7 +225,7 @@ label {
   border-width: 1px;
   border-radius: 8px;
   background: var(--color-scanora-surface-subtle);
-  padding: 24px;
+  padding: 20px;
 }
 
 .scanora-dropzone-title {
@@ -268,7 +268,7 @@ label {
   border-left: 4px solid var(--color-scanora-brand);
   border-radius: 0 8px 8px 0;
   background: var(--color-scanora-brand-soft);
-  padding: 24px;
+  padding: 16px;
 }
 
 .scanora-summary-card h3 {
@@ -372,14 +372,6 @@ label {
   border-radius: 8px;
 }
 
-.scanora-privacy-note {
-  max-width: 68ch;
-  font-size: 0.75rem;
-  line-height: 1.6;
-  text-align: left;
-  text-wrap: pretty;
-}
-
 .scanora-disclaimer {
   max-width: 64ch;
   font-size: 0.875rem;
@@ -388,18 +380,10 @@ label {
   text-wrap: pretty;
 }
 
-.scanora-home-grid:not(.scanora-results-layout) .scanora-privacy-note {
-  width: min(100%, 68ch);
-  min-width: 0;
-  text-align: center;
-}
-
 .scanora-footer {
   display: flex;
-  flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: center;
   border-top: 1px solid var(--color-scanora-border-subtle);
   padding-top: 16px;
   color: var(--color-scanora-faint);
@@ -407,33 +391,11 @@ label {
   line-height: 1.5;
 }
 
-.scanora-footer-credit,
 .scanora-footer-author {
   margin: 0;
+  justify-content: center;
   white-space: nowrap;
-}
-
-.scanora-footer-author {
-  justify-content: flex-end;
-  text-align: right;
-}
-
-@media (max-width: 639px) {
-  .scanora-footer {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .scanora-footer-credit,
-  .scanora-footer-author {
-    white-space: normal;
-  }
-
-  .scanora-footer-author {
-    justify-content: flex-start;
-    text-align: left;
-  }
+  text-align: center;
 }
 
 @media (min-width: 640px) {
@@ -549,8 +511,16 @@ label {
   border: 1px solid var(--color-scanora-border);
   border-radius: 12px;
   background: var(--color-scanora-surface);
-  padding: 24px;
+  padding: 16px;
   box-shadow: 0 4px 16px rgb(23 50 77 / 5%);
+}
+
+@media (min-width: 640px) {
+  .scanora-dropzone,
+  .scanora-summary-card,
+  .scanora-upload-card {
+    padding: 24px;
+  }
 }
 
 .scanora-upload-heading {
@@ -594,21 +564,6 @@ label {
   background: var(--color-scanora-surface-muted);
   color: var(--color-scanora-muted);
   opacity: 1;
-}
-
-.scanora-content-upload .scanora-privacy-note {
-  align-items: center;
-}
-
-.scanora-privacy-note svg {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  color: var(--color-scanora-primary);
-}
-
-.scanora-privacy-note p {
-  margin: 0;
 }
 
 .scanora-content-upload .scanora-footer {
