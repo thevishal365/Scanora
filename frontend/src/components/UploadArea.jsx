@@ -74,15 +74,17 @@ function UploadArea({
             {disabled
               ? 'Analysis in progress…'
               : isDragging
-                ? 'Drop report images or PDFs to attach'
+                ? 'Drop your reports to attach'
                 : 'Drag and drop your files here'}
           </span>
-          <span className="scanora-supporting-copy text-scanora-muted">
-            or{' '}
-            <span className="font-medium text-scanora-primary underline decoration-scanora-primary/40 underline-offset-2 group-hover:decoration-scanora-primary">
-              browse from your device
+          {!disabled && !isDragging && (
+            <span className="scanora-supporting-copy text-scanora-muted">
+              or{' '}
+              <span className="font-medium text-scanora-primary underline decoration-scanora-primary/40 underline-offset-2 group-hover:decoration-scanora-primary">
+                browse from your device
+              </span>
             </span>
-          </span>
+          )}
         </div>
 
         <span

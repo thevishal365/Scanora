@@ -1,59 +1,19 @@
 function ImagePreview({ item, onRemove, disabled }) {
-  const isPdf = item.file.type === 'application/pdf'
-
   return (
-    <li className="scanora-file-item scanora-panel-interactive flex items-center justify-between gap-4 p-4">
-      <div className="flex min-w-0 items-center gap-2">
-        {isPdf ? (
-          <span
-            className="inline-flex size-12 shrink-0 items-center justify-center rounded-md border border-scanora-border bg-scanora-surface-muted text-scanora-primary"
-            aria-hidden="true"
-          >
-            <svg
-              className="size-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.75"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-              />
-            </svg>
-          </span>
-        ) : (
-          <img
-            src={item.previewUrl}
-            alt={`Preview of ${item.file.name}`}
-            className="size-12 shrink-0 rounded-md border border-scanora-border object-cover bg-scanora-surface-muted"
-          />
-        )}
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
-          <p className="truncate text-sm font-medium text-scanora-text" title={item.file.name}>
-            {item.file.name}
-          </p>
-          <p className="scanora-file-limit text-scanora-muted">
-            {item.sizeLabel}
-          </p>
-        </div>
-      </div>
-
+    <li className="scanora-file-chip" title={`${item.file.name} · ${item.sizeLabel}`}>
+      <span>{item.file.name}</span>
       <button
         type="button"
         onClick={() => onRemove(item.id)}
         disabled={disabled}
         aria-label={`Remove ${item.file.name}`}
-        title={`Remove ${item.file.name}`}
-        className="scanora-focus-ring inline-flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-md text-scanora-muted transition-colors duration-180 hover:bg-scanora-error-soft hover:text-scanora-error disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-scanora-muted"
+        className="scanora-focus-ring"
       >
         <svg
-          className="size-5"
-          fill="none"
           viewBox="0 0 24 24"
-          strokeWidth="2"
+          fill="none"
           stroke="currentColor"
+          strokeWidth="2"
           aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

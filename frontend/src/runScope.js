@@ -1,3 +1,5 @@
+import { APP_STATES } from './appState'
+
 // Minimal generation/abort scope for in-flight async requests (M6).
 //
 // A scope hands out incrementing generation IDs, each paired with an
@@ -35,6 +37,6 @@ export function createRunScope() {
 
 // File selection may only change while no analysis request is in flight.
 // Single source of truth for every add/remove/clear guard.
-export function canMutateFiles(status) {
-  return status !== 'uploading'
+export function canMutateFiles(appState) {
+  return appState !== APP_STATES.ANALYZING
 }

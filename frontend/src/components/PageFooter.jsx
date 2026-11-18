@@ -1,17 +1,29 @@
-function PageFooter() {
+function PageFooter({ onOpenDisclaimer }) {
   return (
-    <footer className="scanora-footer pb-2 text-xs text-scanora-faint">
-      <p className="scanora-footer-author inline-flex items-center gap-2">
-        Designed by
-        <a
-          href="https://x.com/thevishal365"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="scanora-focus-ring inline-flex cursor-pointer items-center text-scanora-muted underline decoration-scanora-border underline-offset-2 transition-colors duration-180 hover:text-scanora-primary hover:decoration-scanora-primary/40"
-        >
-          Vishal
-        </a>
-      </p>
+    <footer className="scanora-footer">
+      <button
+        type="button"
+        className="scanora-footer-disclaimer scanora-focus-ring"
+        aria-haspopup="dialog"
+        aria-controls="medical-disclaimer-dialog"
+        onClick={onOpenDisclaimer}
+      >
+        Medical Disclaimer
+      </button>
+      <span className="scanora-footer-attribution">
+        <span className="scanora-footer-separator" aria-hidden="true">·</span>
+        <span className="scanora-footer-author">
+          Designed by
+          <a
+            href="https://x.com/thevishal365"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="scanora-focus-ring"
+          >
+            Vishal
+          </a>
+        </span>
+      </span>
     </footer>
   )
 }

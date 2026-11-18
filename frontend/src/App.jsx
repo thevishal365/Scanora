@@ -1,16 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useReducer, useRef, useState } from 'react'
 import AnalysisResultView from './components/AnalysisResultView'
 import AnalysisProgress from './components/AnalysisProgress'
-import Disclaimer from './components/Disclaimer'
 import ImagePreviewList from './components/ImagePreviewList'
 import PageFooter from './components/PageFooter'
 import { CHAT_STORAGE_KEY, clearStoredChat } from './components/ReportChat'
+import ReportChat from './components/ReportChat'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
 import { messageFromResponse } from './errors'
 import { apiUrl, getAnalysisStatus } from './api'
 import { formatFileSize, splitReportFiles } from './reportFiles'
 import { canMutateFiles, createRunScope } from './runScope'
+import { APP_ACTIONS, APP_STATES, appStateReducer } from './appState'
 
 const FILE_INPUT_ID = 'report-images'
 const FILE_ERROR_ID = 'report-images-error'
@@ -33,12 +34,19 @@ function readSession() {
 function App() {
   const [selectedItems, setSelectedItems] = useState([])
   const [isDragging, setIsDragging] = useState(false)
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false)
   const [fileErrors, setFileErrors] = useState([])
   const [errorMessage, setErrorMessage] = useState('')
-  const [status, setStatus] = useState(() => {
-    const saved = readSession()
-    return saved && saved.status === 'success' ? 'success' : 'idle'
-  })
+  const [appState, dispatch] = useReducer(
+    appStateReducer,
+    null,
+    () => {
+      const saved = readSession()
+      return saved && saved.status === APP_STATES.SUCCESS
+        ? APP_STATES.SUCCESS
+        : APP_STATES.IDLE
+    },
+  )
   const [analysis, setAnalysis] = useState(() => {
     const saved = readSession()
     return saved && saved.analysis ? saved.analysis : null
@@ -49,54 +57,74 @@ function App() {
       ? saved.analysis_id
       : null
   })
-  const selectedItemsRef = useRef(selectedItems)
   const analysisScopeRef = useRef(null)
+  const disclaimerDialogRef = useRef(null)
+  const shouldFocusUploadRef = useRef(false)
   if (analysisScopeRef.current === null) {
     analysisScopeRef.current = createRunScope()
   }
-  const isBusy = status === 'uploading'
+  const isAnalyzing = appState === APP_STATES.ANALYZING
 
   useEffect(() => {
-    selectedItemsRef.current = selectedItems
-  }, [selectedItems])
+    if (shouldFocusUploadRef.current && appState === APP_STATES.IDLE) {
+      document.getElementById('upload-heading')?.focus()
+      shouldFocusUploadRef.current = false
+    }
+  }, [appState])
+
+  useEffect(() => {
+    const dialog = disclaimerDialogRef.current
+    if (!dialog) {
+      return
+    }
+
+    if (showDisclaimerModal && !dialog.open) {
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal()
+      } else {
+        dialog.setAttribute('open', '')
+      }
+      dialog.querySelector('.scanora-disclaimer-close')?.focus()
+    } else if (!showDisclaimerModal && dialog.open) {
+      if (typeof dialog.close === 'function') {
+        dialog.close()
+      } else {
+        dialog.removeAttribute('open')
+      }
+    }
+  }, [showDisclaimerModal])
 
   useEffect(() => {
     return () => {
       analysisScopeRef.current.cancel()
-      selectedItemsRef.current.forEach((item) => {
-        URL.revokeObjectURL(item.previewUrl)
-      })
     }
   }, [])
 
   useEffect(() => {
     try {
-      if (status === 'success' && analysis) {
+      if (appState === APP_STATES.SUCCESS && analysis) {
         sessionStorage.setItem(
           SESSION_KEY,
-          JSON.stringify({ analysis, analysis_id: analysisId, status }),
+          JSON.stringify({ analysis, analysis_id: analysisId, status: appState }),
         )
-      } else if (status === 'idle') {
+      } else if (appState === APP_STATES.IDLE) {
         sessionStorage.removeItem(SESSION_KEY)
       }
     } catch {
       // Storage may be unavailable; persistence is best-effort.
     }
-  }, [analysis, analysisId, status])
+  }, [analysis, analysisId, appState])
 
   function clearSelectedFiles(options) {
     // startOver() forces through; every UI affordance is blocked mid-flight.
-    if (!options?.force && !canMutateFiles(status)) {
+    if (!options?.force && !canMutateFiles(appState)) {
       return
     }
-    selectedItems.forEach((item) => {
-      URL.revokeObjectURL(item.previewUrl)
-    })
     setSelectedItems([])
   }
 
   async function addFiles(fileList) {
-    if (!canMutateFiles(status)) {
+    if (!canMutateFiles(appState)) {
       return
     }
     if (!fileList || fileList.length === 0) {
@@ -113,11 +141,10 @@ function App() {
       const newItems = accepted.map((file) => ({
         id: crypto.randomUUID(),
         file,
-        previewUrl: URL.createObjectURL(file),
         sizeLabel: formatFileSize(file.size),
       }))
       setSelectedItems((current) => [...current, ...newItems])
-      setStatus('idle')
+      dispatch({ type: APP_ACTIONS.FILES_CHANGED })
     }
 
     setErrorMessage('')
@@ -125,17 +152,13 @@ function App() {
   }
 
   function removeItem(id) {
-    if (!canMutateFiles(status)) {
+    if (!canMutateFiles(appState)) {
       return
     }
     setSelectedItems((current) => {
-      const item = current.find((entry) => entry.id === id)
-      if (item) {
-        URL.revokeObjectURL(item.previewUrl)
-      }
       return current.filter((entry) => entry.id !== id)
     })
-    setStatus('idle')
+    dispatch({ type: APP_ACTIONS.FILES_CHANGED })
   }
 
   function clearStoredSession() {
@@ -155,20 +178,25 @@ function App() {
     clearSelectedFiles({ force: true })
     setAnalysis(null)
     setAnalysisId(null)
-    setStatus('idle')
+    dispatch({ type: APP_ACTIONS.RESET_SCAN })
     setErrorMessage('')
     setFileErrors([])
-    // The upload heading is always mounted, so it can take focus immediately.
-    document.getElementById('upload-heading')?.focus()
+    shouldFocusUploadRef.current = true
+  }
+
+  function stopAnalysis() {
+    analysisScopeRef.current.cancel()
+    dispatch({ type: APP_ACTIONS.STOP_ANALYSIS })
+    setErrorMessage('')
   }
 
   async function handleAnalyze() {
-    if (isBusy) {
+    if (isAnalyzing) {
       return
     }
 
     if (selectedItems.length === 0) {
-      setStatus('error')
+      dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
       setErrorMessage('Choose at least one report image before analyzing.')
       return
     }
@@ -182,7 +210,7 @@ function App() {
     const isRunCurrent = () => analysisScopeRef.current.isCurrent(run.id)
 
     setErrorMessage('')
-    setStatus('uploading')
+    dispatch({ type: APP_ACTIONS.START_ANALYSIS })
 
     try {
       const response = await fetch(apiUrl('/api/analyze'), {
@@ -204,7 +232,7 @@ function App() {
       }
 
       if (!response.ok) {
-        setStatus('error')
+        dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
         setErrorMessage(
           messageFromResponse(
             response,
@@ -221,7 +249,7 @@ function App() {
         typeof data.task_id !== 'string' ||
         !data.task_id
       ) {
-        setStatus('error')
+        dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
         setErrorMessage('Your reports could not be analyzed. Please try again.')
         return
       }
@@ -240,7 +268,7 @@ function App() {
           return
         }
         if (!statusResponse.ok) {
-          setStatus('error')
+          dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
           setErrorMessage(
             messageFromResponse(
               statusResponse,
@@ -255,7 +283,7 @@ function App() {
           continue
         }
         if (task?.status === 'failed') {
-          setStatus('error')
+          dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
           setErrorMessage(
             typeof task.error === 'string'
               ? task.error
@@ -270,7 +298,7 @@ function App() {
           typeof task.analysis_id !== 'string' ||
           !task.analysis_id
         ) {
-          setStatus('error')
+          dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
           setErrorMessage('Your reports could not be analyzed. Please try again.')
           return
         }
@@ -290,7 +318,7 @@ function App() {
       }
       setAnalysis(result.analysis)
       setAnalysisId(result.analysis_id)
-      setStatus('success')
+      dispatch({ type: APP_ACTIONS.FINISH_ANALYSIS })
     } catch (err) {
       if (!isRunCurrent()) {
         return
@@ -299,165 +327,246 @@ function App() {
         // Cancelled via startOver(), which already reset state to idle.
         return
       }
-      setStatus('error')
+      dispatch({ type: APP_ACTIONS.ANALYSIS_FAILED })
       setErrorMessage(
         'Scanora could not reach the server. Make sure the backend is running and try again.',
       )
     }
   }
 
-  const showResults = analysis && status === 'success'
   const activeErrors =
-    status === 'error' && errorMessage ? [errorMessage] : fileErrors
+    appState === APP_STATES.ERROR && errorMessage ? [errorMessage] : fileErrors
+  const activeSession =
+    isAnalyzing || (appState === APP_STATES.SUCCESS && Boolean(analysis))
+  const submittedFiles = selectedItems.length
+    ? selectedItems.map((item) => item.file.name)
+    : analysis?.reports?.map((report) => report.source_label).filter(Boolean) || []
 
   return (
-    <main className="scanora-page">
-      <div
-        className={`scanora-content mx-auto flex w-full max-w-6xl flex-col gap-8 ${
-          showResults ? 'scanora-content-results' : 'scanora-content-upload'
-        }`}
-      >
-        <header className="scanora-header flex items-center justify-between border-b border-scanora-border-subtle pb-4">
+    <main
+      className={`scanora-page ${activeSession ? 'scanora-page-active' : 'scanora-page-landing'}`}
+    >
+      <header className="scanora-header">
+        <div className="scanora-header-inner">
           <ScanoraBrand />
-          <span className="scanora-session-badge inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium">
-            <svg
-              className="size-4"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              aria-hidden="true"
-            >
-              <circle cx="8" cy="8" r="5.5" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 4.8V8l2.1 1.3" />
-            </svg>
-            Session only
-          </span>
-        </header>
-
-        <div className={`scanora-home-grid${showResults ? ' scanora-results-layout' : ''}`}>
-          {/* Hero title & editorial lead */}
-          <div className="scanora-hero flex flex-col gap-4">
-            <p className="scanora-kicker">Clinical Document Assistant</p>
-            <h1 id="upload-heading" tabIndex={-1} className="scanora-page-title font-heading font-semibold text-scanora-text outline-none">
-              Understand Your Reports, Simply.
-            </h1>
-            {!showResults && (
-              <>
-                <p className="scanora-hero-copy text-scanora-muted">
-                  We help simplify medical information so you can better understand what your reports are telling you.
-                </p>
-                <ul className="scanora-reassurance flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-scanora-muted">
-                  <li>
-                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                      <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Clear explanations
-                  </li>
-                  <li>
-                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                      <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Session-based
-                  </li>
-                  <li>
-                    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                      <path d="m4 10 4 4 8-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    No account needed
-                  </li>
-                </ul>
-              </>
+          <div className="scanora-header-actions">
+            {!activeSession && (
+              <span className="scanora-session-badge">
+                <svg
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  aria-hidden="true"
+                >
+                  <circle cx="8" cy="8" r="5.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 4.8V8l2.1 1.3" />
+                </svg>
+                Session only
+              </span>
+            )}
+            {activeSession && (
+              <button
+                type="button"
+                onClick={startOver}
+                className="scanora-new-scan scanora-focus-ring"
+              >
+                New Scan
+              </button>
             )}
           </div>
+        </div>
+      </header>
 
-          <div className="scanora-primary-column flex min-w-0 flex-col gap-4">
-            {showResults ? (
+      {activeSession ? (
+        <section className="scanora-thread" aria-label="Report analysis conversation">
+          {submittedFiles.length > 0 && (
+            <div className="scanora-user-turn">
+              <span className="scanora-turn-label">Your reports</span>
+              <ul>
+                {submittedFiles.map((name, index) => (
+                  <li key={`${name}-${index}`}>{name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {isAnalyzing ? (
+            <>
+              <AnalysisProgress />
+              <ReportChat
+                key="analysis-pending"
+                isAnalysisBusy
+                onAttachFiles={addFiles}
+                onStopAnalysis={stopAnalysis}
+              />
+            </>
+          ) : (
+            <>
               <AnalysisResultView
                 analysis={analysis}
                 analysisId={analysisId}
-                onStartOver={startOver}
+                onAttachFiles={addFiles}
+                attachmentErrors={fileErrors}
               />
-            ) : (
-              <section className="scanora-workspace scanora-upload-card flex w-full flex-col gap-4" aria-labelledby="upload-card-heading">
-                <div className="scanora-upload-heading flex flex-col gap-2">
-                  <p className="scanora-kicker">Your reports</p>
-                  <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                    <h2 id="upload-card-heading" className="scanora-card-title font-heading font-semibold text-scanora-text">
-                      Start with a document
-                    </h2>
-                    <span className="scanora-file-limit shrink-0 text-scanora-muted">Up to 10 files</span>
-                  </div>
-                  <p className="scanora-supporting-copy text-scanora-muted">
-                    Add one or more lab or diagnostic reports to get started.
-                  </p>
-                </div>
+            </>
+          )}
+        </section>
+      ) : (
+        <section className="scanora-landing">
+          <div className="scanora-hero">
+            <p className="scanora-hero-badge">
+              <span className="scanora-hero-indicator" aria-hidden="true" />
+              Clinical Document Assistant
+            </p>
+            <h1 id="upload-heading" tabIndex={-1} className="scanora-page-title">
+              Understand Your Reports, <span className="scanora-accent-italic">Simply.</span>
+            </h1>
+            <p className="scanora-hero-copy">
+              We help simplify medical information so you can better understand what your reports are telling you.
+            </p>
 
-                <UploadArea
-                  inputId={FILE_INPUT_ID}
-                  errorId={FILE_ERROR_ID}
-                  errors={activeErrors}
-                  isDragging={isDragging}
-                  disabled={isBusy}
-                  onDragOver={(event) => {
-                    event.preventDefault()
-                    setIsDragging(true)
-                  }}
-                  onDragLeave={() => setIsDragging(false)}
-                  onDrop={(event) => {
-                    event.preventDefault()
-                    setIsDragging(false)
-                    addFiles(event.dataTransfer.files)
-                  }}
-                  onFilesChosen={addFiles}
-                />
+            <ul className="scanora-reassurance" aria-label="Scanora benefits">
+              <li>
+                <span className="scanora-check-badge">
+                  <svg className="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="6" fill="var(--color-scanora-brand)" />
+                    <path d="M3.5 6l1.75 1.75L8.5 4" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                Clear explanations
+              </li>
+              <li>
+                <span className="scanora-check-badge">
+                  <svg className="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="6" fill="var(--color-scanora-brand)" />
+                    <path d="M3.5 6l1.75 1.75L8.5 4" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                Session-based
+              </li>
+              <li>
+                <span className="scanora-check-badge">
+                  <svg className="size-3" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                    <circle cx="6" cy="6" r="6" fill="var(--color-scanora-brand)" />
+                    <path d="M3.5 6l1.75 1.75L8.5 4" stroke="#FFFFFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                No account needed
+              </li>
+            </ul>
 
-                <ImagePreviewList
-                  items={selectedItems}
-                  onRemove={removeItem}
-                  onClearAll={() => clearSelectedFiles()}
-                  disabled={isBusy}
-                />
+            <section className="scanora-upload-card" aria-label="Upload your reports">
+              <UploadArea
+                inputId={FILE_INPUT_ID}
+                errorId={FILE_ERROR_ID}
+                errors={activeErrors}
+                isDragging={isDragging}
+                disabled={isAnalyzing}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  setIsDragging(true)
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  setIsDragging(false)
+                  addFiles(event.dataTransfer.files)
+                }}
+                onFilesChosen={addFiles}
+              />
 
-                <button
-                  type="button"
-                  onClick={handleAnalyze}
-                  disabled={isBusy}
-                  aria-busy={isBusy}
-                  className="scanora-button-primary scanora-upload-submit scanora-focus-ring inline-flex w-full cursor-pointer items-center justify-center gap-2"
+              <ImagePreviewList
+                items={selectedItems}
+                onRemove={removeItem}
+                onClearAll={() => clearSelectedFiles()}
+                disabled={isAnalyzing}
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedItems.length === 0) {
+                    document.getElementById(FILE_INPUT_ID)?.click()
+                    return
+                  }
+                  handleAnalyze()
+                }}
+                disabled={isAnalyzing}
+                aria-busy={isAnalyzing}
+                className="scanora-upload-submit scanora-focus-ring"
+              >
+                {selectedItems.length === 0 ? 'Select Files to Analyze' : 'Analyze Reports'}
+                <svg
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  aria-hidden="true"
                 >
-                  {isBusy ? (
-                    <>
-                      <span>Analyzing your reports</span>
-                      <span className="analyzing-dots" aria-hidden="true" />
-                    </>
-                  ) : (
-                    <>
-                      <span>Analyze Reports</span>
-                      <svg
-                        className="size-4"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth="2.5"
-                        stroke="currentColor"
-                        aria-hidden="true"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                      </svg>
-                    </>
-                  )}
-                </button>
-
-                {isBusy && <AnalysisProgress />}
-              </section>
-            )}
-
-            {showResults && <Disclaimer />}
+                  <path d="M3.5 10h12m-5-5 5 5-5 5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <p className="scanora-upload-next">
+                Get a plain-language summary, flagged values, and follow-up Q&amp;A.
+              </p>
+            </section>
           </div>
-        </div>
-
-        <PageFooter />
-      </div>
+          <PageFooter onOpenDisclaimer={() => setShowDisclaimerModal(true)} />
+        </section>
+      )}
+      <dialog
+        ref={disclaimerDialogRef}
+        id="medical-disclaimer-dialog"
+        className="scanora-disclaimer-dialog"
+        aria-labelledby="medical-disclaimer-title"
+        aria-describedby="medical-disclaimer-copy"
+        aria-modal="true"
+        onCancel={() => setShowDisclaimerModal(false)}
+        onClose={() => setShowDisclaimerModal(false)}
+        onClick={(event) => {
+          if (event.target === event.currentTarget) {
+            setShowDisclaimerModal(false)
+          }
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            setShowDisclaimerModal(false)
+          }
+        }}
+      >
+        <section className="scanora-disclaimer-card">
+          <div className="scanora-disclaimer-header">
+            <span className="scanora-disclaimer-eyebrow">Medical Disclaimer</span>
+            <button
+              type="button"
+              className="scanora-disclaimer-close scanora-focus-ring"
+              aria-label="Close medical disclaimer"
+              onClick={() => setShowDisclaimerModal(false)}
+            >
+              <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="m5 5 10 10M15 5 5 15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+          <h2 id="medical-disclaimer-title" className="scanora-disclaimer-title">
+            For educational use — always consult your doctor.
+          </h2>
+          <p id="medical-disclaimer-copy" className="scanora-disclaimer-copy">
+            Scanora is an educational reading aid designed to help explain lab reports and
+            biomarker values in plain language. It does not provide medical diagnoses,
+            treatment plans, or professional medical evaluations. For health decisions or
+            concerns about your results, please consult a qualified physician.
+          </p>
+          <button
+            type="button"
+            className="scanora-disclaimer-confirm scanora-focus-ring"
+            onClick={() => setShowDisclaimerModal(false)}
+          >
+            Got it
+          </button>
+        </section>
+      </dialog>
     </main>
   )
 }

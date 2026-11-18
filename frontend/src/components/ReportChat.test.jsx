@@ -30,7 +30,7 @@ function answerResponse(answer) {
 
 async function sendMessage(text) {
   fireEvent.change(
-    screen.getByPlaceholderText(/out-of-range hematocrit/i),
+    screen.getByPlaceholderText(/follow-up question/i),
     { target: { value: text } },
   )
   fireEvent.click(screen.getByRole('button', { name: 'Send question' }))
@@ -108,11 +108,24 @@ describe('chat send concurrency', () => {
     await screen.findByText('Recovered answer')
     expect(screen.queryByRole('alert')).toBeNull()
   })
+
+  it('stops an in-flight chat request and keeps the question available to retry', async () => {
+    render(<ReportChat analysisId="a1" />)
+    await sendMessage('Stop this question')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+
+    expect(fetch.mock.calls[0][1].signal.aborted).toBe(true)
+    expect(screen.getByText('This question was stopped before an answer arrived.')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy()
+    pendingRequests[0].resolve(answerResponse('Late answer'))
+    expect(screen.queryByText('Late answer')).toBeNull()
+  })
 })
 
 describe('composer prefill, expiry, and hints', () => {
   function composer() {
-    return screen.getByPlaceholderText(/out-of-range hematocrit/i)
+    return screen.getByPlaceholderText(/follow-up question/i)
   }
 
   it('preserves a typed draft when ask-about-this arrives', () => {

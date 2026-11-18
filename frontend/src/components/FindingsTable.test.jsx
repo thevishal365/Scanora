@@ -37,43 +37,27 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('findings table', () => {
-  it('renders every attention value as one compact row with its status', () => {
+describe('attention findings list', () => {
+  it('renders every attention value as a concise bullet without reference columns', () => {
     render(
       <AnalysisResultView analysis={analysis} analysisId="tid" onStartOver={() => {}} />,
     )
 
-    const table = within(
-      screen.getByRole('region', { name: 'Attention-worthy findings' }),
-    ).getByRole('table')
+    const findings = screen.getByRole('list', { name: 'Key findings needing attention' })
     expect(
-      within(table).getByRole('columnheader', { name: 'Test / Parameter' }),
-    ).toBeTruthy()
-    expect(within(table).getByRole('columnheader', { name: 'Result' })).toBeTruthy()
-    expect(
-      within(table).getByRole('columnheader', { name: 'Reference Range' }),
-    ).toBeTruthy()
-    expect(within(table).getByRole('columnheader', { name: 'Status' })).toBeTruthy()
-
-    expect(
-      within(table).getByRole('row', {
-        name: /Hemoglobin 18\.1 g\/dL Reference: 12\.0–16\.0 g\/dL Above the provided reference range\./i,
-      }),
+      within(findings).getByText(
+        'Hemoglobin: 18.1 g/dL — Above the provided reference range.',
+      ),
     ).toBeTruthy()
     expect(
-      within(table).getByRole('row', {
-        name: /HBsAg Reactive Explicitly flagged in the report\./i,
-      }),
+      within(findings).getByText('HBsAg: Reactive — Explicitly flagged in the report.'),
     ).toBeTruthy()
     expect(
-      within(table).getByRole('row', {
-        name: /Calcium 9\.5 H mg\/dL Explicitly flagged in the report\./i,
-      }),
+      within(findings).getByText(
+        'Calcium: 9.5 H mg/dL — Explicitly flagged in the report.',
+      ),
     ).toBeTruthy()
-
-    // Placeholder labels are never presented as data.
-    expect(within(table).queryByText(/not shown/i)).toBeNull()
-    // No per-finding ask actions remain.
-    expect(within(table).queryAllByRole('button')).toHaveLength(0)
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.queryByText(/not shown/i)).toBeNull()
   })
 })

@@ -105,33 +105,80 @@ afterEach(() => {
 })
 
 describe('upload landing page', () => {
-  it('shows the guided upload steps and consistent reassurance features', () => {
+  it('shows the centered lab report upload hero and trust details', () => {
     render(<App />)
 
     expect(screen.getByRole('link', { name: 'Scanora home' })).toBeTruthy()
     expect(screen.getByText('Session only')).toBeTruthy()
     expect(screen.getByText('Clinical Document Assistant')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Start with a document' })).toBeTruthy()
-    expect(screen.getByText('Up to 10 files')).toBeTruthy()
-    expect(screen.getByText('Drag and drop your files here')).toBeTruthy()
-    const reassuranceFeatures = ['Clear explanations', 'Session-based', 'No account needed']
-    for (const feature of reassuranceFeatures) {
-      expect(screen.getByText(feature).closest('li').querySelector('svg')).toBeTruthy()
-    }
+    expect(screen.getByRole('heading', { name: 'Understand Your Reports, Simply.' })).toBeTruthy()
+    expect(screen.getByText('Simply.').className).toContain('scanora-accent-italic')
     expect(
-      screen.queryByText(
-        'Your reports are only used for this session and are not saved to an account.',
+      screen.getByText(
+        'We help simplify medical information so you can better understand what your reports are telling you.',
       ),
-    ).toBeNull()
+    ).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Upload your reports' })).toBeTruthy()
+    expect(screen.queryByText('Start with a document')).toBeNull()
     expect(
-      screen.queryByText('Scanora helps make report language easier to understand.'),
+      screen.queryByText('Add one or more lab or diagnostic reports to get started.'),
     ).toBeNull()
-    expect(screen.getByText('Designed by').closest('p').className).toContain(
-      'scanora-footer-author',
-    )
-    expect(screen.getByText('Designed by').closest('p').className).toContain(
-      'items-center',
-    )
+    expect(screen.getByText('Drag and drop your files here')).toBeTruthy()
+    expect(screen.getByText('browse from your device')).toBeTruthy()
+    expect(screen.getByText(/JPG, JPEG, PNG, or PDF · 10 MB per file · 30 MB total · Up to 10 files/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Select Files to Analyze' })).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Get a plain-language summary, flagged values, and follow-up Q&A.',
+      ),
+    ).toBeTruthy()
+    for (const reassurance of ['Clear explanations', 'Session-based', 'No account needed']) {
+      const badge = screen.getByText(reassurance).closest('li').querySelector('.scanora-check-badge')
+      expect(badge.querySelector('circle').getAttribute('fill')).toBe(
+        'var(--color-scanora-brand)',
+      )
+      expect(badge.querySelector('path').getAttribute('stroke')).toBe('#FFFFFF')
+    }
+    expect(screen.getByRole('button', { name: 'Medical Disclaimer' })).toBeTruthy()
+    const microFooter = screen.getByRole('contentinfo')
+    expect(microFooter.textContent).toContain('·')
+    expect(microFooter.textContent).toContain('Designed by')
+    expect(microFooter.querySelector('a').textContent).toBe('Vishal')
+  })
+})
+
+describe('medical disclaimer modal', () => {
+  it('opens from the footer and closes with the confirmation button', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Disclaimer' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement.getAttribute('aria-label')).toBe('Close medical disclaimer')
+    expect(
+      screen.getByRole('heading', {
+        name: 'For educational use — always consult your doctor.',
+      }),
+    ).toBeTruthy()
+    expect(screen.getByText(/Scanora is an educational reading aid/)).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(dialog.open).toBe(false)
+  })
+
+  it('closes on Escape or when the backdrop is clicked', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Disclaimer' }))
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(dialog.open).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Disclaimer' }))
+    const reopenedDialog = screen.getByRole('dialog')
+    fireEvent.click(reopenedDialog)
+    expect(reopenedDialog.open).toBe(false)
   })
 })
 
@@ -142,31 +189,18 @@ describe('analysis concurrency guards', () => {
     clickAnalyze()
 
     // Loading state is active.
-    expect(
-      screen.getByRole('button', { name: /analyzing your reports/i }).disabled,
-    ).toBe(true)
+    expect(screen.getByRole('button', { name: 'Stop' }).disabled).toBe(false)
 
-    // Remove is blocked: the file stays selected.
-    fireEvent.click(screen.getByRole('button', { name: 'Remove cbc.jpg' }))
-    expect(screen.getByText('Selected Reports (1)')).toBeTruthy()
+    // The active thread keeps the submitted file and a disabled attachment affordance.
     expect(screen.getByText('cbc.jpg')).toBeTruthy()
-
-    // Clear-all is blocked.
-    fireEvent.click(screen.getByRole('button', { name: /clear all/i }))
-    expect(screen.getByText('Selected Reports (1)')).toBeTruthy()
-
-    // Adding more files is blocked (no status flip, no new file).
-    fireEvent.change(fileInput(container), { target: { files: [makeJpg('extra.jpg')] } })
-    expect(screen.getByText('Selected Reports (1)')).toBeTruthy()
-    expect(screen.queryByText('extra.jpg')).toBeNull()
-    expect(
-      screen.getByRole('button', { name: /analyzing your reports/i }).disabled,
-    ).toBe(true)
+    expect(screen.getByRole('button', { name: 'Attach more reports' }).disabled).toBe(true)
 
     // The in-flight request still completes normally.
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByRole('heading', { name: /findings that may need your attention/i })
-    await screen.findByText('Finding id-1')
+    await screen.findByRole('heading', { name: 'Analysis Complete' })
+    await screen.findByText(/Finding id-1:/)
+    expect(screen.queryByText('Session only')).toBeNull()
+    expect(screen.getByRole('button', { name: 'New Scan' })).toBeTruthy()
   })
 
   it('aborts the request on unmount and ignores the late success', async () => {
@@ -184,9 +218,9 @@ describe('analysis concurrency guards', () => {
 
     const second = render(<App />)
     expect(second.container.querySelector('input[type="file"]')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /analyze reports/i }).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Select Files to Analyze' }).disabled).toBe(false)
     expect(
-      screen.queryByRole('heading', { name: /findings that may need your attention/i }),
+      screen.queryByRole('heading', { name: 'Analysis Complete' }),
     ).toBeNull()
     expect(screen.queryByText('Late Summary')).toBeNull()
 
@@ -194,7 +228,7 @@ describe('analysis concurrency guards', () => {
     await addFile(second.container, 'fresh.jpg')
     clickAnalyze()
     pendingRequests[1].resolve(analysisResponse('id-fresh', 'Fresh Summary'))
-    await screen.findByText('Finding id-fresh')
+    await screen.findByText(/Finding id-fresh:/)
   })
 
   it('ignores a late error after unmount', async () => {
@@ -208,7 +242,7 @@ describe('analysis concurrency guards', () => {
 
     render(<App />)
     expect(screen.queryByText(/could not reach the server/i)).toBeNull()
-    expect(screen.getByRole('button', { name: /analyze reports/i }).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Select Files to Analyze' }).disabled).toBe(false)
   })
 
   it('an error does not stick: the next analysis can succeed', async () => {
@@ -221,7 +255,7 @@ describe('analysis concurrency guards', () => {
     // Retry with a fresh run: previous failure cannot overwrite it.
     clickAnalyze()
     pendingRequests[1].resolve(analysisResponse('id-2', 'Recovered Summary'))
-    await screen.findByText('Finding id-2')
+    await screen.findByText(/Finding id-2:/)
     expect(screen.queryByRole('alert')).toBeNull()
   })
 
@@ -230,13 +264,13 @@ describe('analysis concurrency guards', () => {
     await addFile(container, 'first.jpg')
     clickAnalyze()
     pendingRequests[0].resolve(analysisResponse('id-a', 'Summary Alpha'))
-    await screen.findByText('Finding id-a')
+    await screen.findByText(/Finding id-a:/)
 
-    fireEvent.click(screen.getByRole('button', { name: /analyze more reports/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'New Scan' }))
     await addFile(container, 'second.jpg')
     clickAnalyze()
     pendingRequests[1].resolve(analysisResponse('id-b', 'Summary Beta'))
-    await screen.findByText('Finding id-b')
+    await screen.findByText(/Finding id-b:/)
     expect(screen.queryByText('Finding id-a')).toBeNull()
   })
 })
@@ -255,7 +289,7 @@ describe('analysis loading state', () => {
     clickAnalyze()
     pendingRequests[0].resolve(submission)
     expect(screen.getByRole('status')).toBeTruthy()
-    await screen.findByText('Finding id-poll', {}, { timeout: 3000 })
+    await screen.findByText(/Finding id-poll:/, {}, { timeout: 3000 })
     expect(
       fetch.mock.calls.filter(([url]) =>
         String(url).includes('/api/analyze/status/'),
@@ -289,13 +323,25 @@ describe('analysis loading state', () => {
     await addFile(container, 'cbc.jpg')
     clickAnalyze()
 
+    expect(screen.getByText('cbc.jpg')).toBeTruthy()
     expect(
-      screen.getByRole('status', { name: /analysis in progress: uploading reports/i }),
+      screen.getByRole('status'),
     ).toBeTruthy()
-    expect(screen.getByText('Reading reports')).toBeTruthy()
+    expect(screen.queryByText('Session only')).toBeNull()
+    expect(screen.getByRole('button', { name: 'New Scan' })).toBeTruthy()
+    const attachButton = screen.getByRole('button', { name: 'Attach more reports' })
+    expect(attachButton.disabled).toBe(true)
+    expect(attachButton.querySelector('svg')).toBeTruthy()
+    expect(screen.getByPlaceholderText(/reports are being analyzed/i).disabled).toBe(true)
+    expect(screen.getByText(/Reading your reports/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy()
+    expect(screen.queryByText('Analysis can be stopped at any time.')).toBeNull()
 
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByRole('heading', { name: /findings that may need your attention/i })
+    await screen.findByRole('heading', { name: 'Analysis Complete' })
+    expect(screen.queryByRole('button', { name: 'Medical Disclaimer' })).toBeNull()
+    expect(screen.queryByText('Designed by')).toBeNull()
+    expect(screen.queryByText('Not a substitute for professional medical evaluation')).toBeNull()
   })
 
   it('hides loading when the analysis succeeds', async () => {
@@ -305,7 +351,7 @@ describe('analysis loading state', () => {
     expect(screen.getByRole('status')).toBeTruthy()
 
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByText('Finding id-1')
+    await screen.findByText(/Finding id-1:/)
     expect(screen.queryByRole('status')).toBeNull()
   })
 
@@ -329,7 +375,20 @@ describe('analysis loading state', () => {
 
     render(<App />)
     expect(screen.queryByRole('status')).toBeNull()
-    expect(screen.getByRole('button', { name: /analyze reports/i }).disabled).toBe(false)
+    expect(screen.getByRole('button', { name: 'Select Files to Analyze' }).disabled).toBe(false)
+  })
+
+  it('stops an in-flight analysis from the sticky composer', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'cbc.jpg')
+    clickAnalyze()
+    const signal = fetch.mock.calls[0][1].signal
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+
+    expect(signal.aborted).toBe(true)
+    expect(screen.getByRole('button', { name: 'Analyze Reports' })).toBeTruthy()
+    expect(screen.queryByRole('status')).toBeNull()
   })
 
   it('a stale response cannot resurrect loading or results', async () => {
@@ -345,28 +404,26 @@ describe('analysis loading state', () => {
     expect(second.container.querySelector('input[type="file"]')).toBeTruthy()
     expect(screen.queryByRole('status')).toBeNull()
     expect(
-      screen.queryByRole('heading', { name: /findings that may need your attention/i }),
+      screen.queryByRole('heading', { name: 'Analysis Complete' }),
     ).toBeNull()
     expect(screen.queryByText('Late Summary')).toBeNull()
   })
 })
 
 describe('busy file controls and focus management', () => {
-  it('disables file controls and the dropzone while analysis is running', async () => {
+  it('keeps submitted files and the attachment affordance visible during analysis', async () => {
     const { container } = render(<App />)
     await addFile(container, 'cbc.jpg')
     clickAnalyze()
 
-    expect(screen.getByRole('button', { name: 'Remove cbc.jpg' }).disabled).toBe(true)
-    expect(screen.getByRole('button', { name: /clear all/i }).disabled).toBe(true)
-    expect(fileInput(container).disabled).toBe(true)
-    const label = container.querySelector('label[for="report-images"]')
-    expect(label.getAttribute('aria-disabled')).toBe('true')
-    expect(screen.getByText(/analysis in progress/i)).toBeTruthy()
+    expect(screen.getByText('cbc.jpg')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Remove cbc.jpg' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Attach more reports' }).disabled).toBe(true)
+    expect(screen.getByPlaceholderText(/reports are being analyzed/i)).toBeTruthy()
 
     // Controls work again after the run settles.
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByRole('heading', { name: /findings that may need your attention/i })
+    await screen.findByRole('heading', { name: 'Analysis Complete' })
   })
 
   it('moves focus to the results heading on success', async () => {
@@ -374,8 +431,8 @@ describe('busy file controls and focus management', () => {
     await addFile(container, 'cbc.jpg')
     clickAnalyze()
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByRole('heading', { name: /findings that may need your attention/i })
-    expect(document.activeElement?.textContent).toMatch(/findings that may need your attention/i)
+    await screen.findByRole('heading', { name: 'Analysis Complete' })
+    expect(document.activeElement?.textContent).toMatch(/analysis complete/i)
   })
 
   it('moves focus to the upload heading on start over', async () => {
@@ -383,9 +440,9 @@ describe('busy file controls and focus management', () => {
     await addFile(container, 'cbc.jpg')
     clickAnalyze()
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
-    await screen.findByRole('heading', { name: /findings that may need your attention/i })
+    await screen.findByRole('heading', { name: 'Analysis Complete' })
 
-    fireEvent.click(screen.getByRole('button', { name: /analyze more reports/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'New Scan' }))
     expect(document.activeElement?.textContent).toMatch(/understand your reports/i)
   })
 })

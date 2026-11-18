@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { APP_STATES } from './appState'
 import { canMutateFiles, createRunScope } from './runScope'
 
 describe('createRunScope generations', () => {
@@ -86,13 +87,13 @@ describe('stale-response protection pattern', () => {
 })
 
 describe('canMutateFiles', () => {
-  it('blocks mutation while uploading', () => {
-    expect(canMutateFiles('uploading')).toBe(false)
+  it('blocks mutation while analyzing', () => {
+    expect(canMutateFiles(APP_STATES.ANALYZING)).toBe(false)
   })
 
-  it('allows mutation in every other status', () => {
-    expect(canMutateFiles('idle')).toBe(true)
-    expect(canMutateFiles('error')).toBe(true)
-    expect(canMutateFiles('success')).toBe(true)
+  it('allows mutation in every other app state', () => {
+    expect(canMutateFiles(APP_STATES.IDLE)).toBe(true)
+    expect(canMutateFiles(APP_STATES.ERROR)).toBe(true)
+    expect(canMutateFiles(APP_STATES.SUCCESS)).toBe(true)
   })
 })

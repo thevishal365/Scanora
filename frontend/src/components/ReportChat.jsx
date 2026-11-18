@@ -48,7 +48,14 @@ function loadStoredMessages(storageKey) {
   return []
 }
 
-function ReportChat({ analysisId, prefillRequest }) {
+function ReportChat({
+  analysisId,
+  prefillRequest,
+  onAttachFiles,
+  isAnalysisBusy = false,
+  onStopAnalysis,
+  attachmentErrors = [],
+}) {
   const storageKey = chatStorageKey(analysisId)
   const [messages, setMessages] = useState(() => loadStoredMessages(storageKey))
   const [draft, setDraft] = useState('')
@@ -57,6 +64,8 @@ function ReportChat({ analysisId, prefillRequest }) {
   const [failedMessage, setFailedMessage] = useState('')
   const [isExpired, setIsExpired] = useState(false)
   const composerRef = useRef(null)
+  const attachInputRef = useRef(null)
+  const activeMessageRef = useRef('')
   const appliedPrefillNonce = useRef(null)
   const sendScopeRef = useRef(null)
   if (sendScopeRef.current === null) {
@@ -70,6 +79,10 @@ function ReportChat({ analysisId, prefillRequest }) {
       // Persistence is best-effort.
     }
   }, [messages, storageKey])
+
+  useEffect(() => {
+    resizeComposer()
+  }, [draft])
 
   // Reset (or a new analysis identity, via parent key) cancels the send.
   useEffect(() => {
@@ -151,6 +164,7 @@ function ReportChat({ analysisId, prefillRequest }) {
     const run = sendScopeRef.current.begin()
     const isRunCurrent = () => sendScopeRef.current.isCurrent(run.id)
 
+    activeMessageRef.current = text
     setErrorMessage('')
     setIsSending(true)
     setFailedMessage('')
@@ -246,7 +260,28 @@ function ReportChat({ analysisId, prefillRequest }) {
     } finally {
       if (isRunCurrent()) {
         setIsSending(false)
+        activeMessageRef.current = ''
       }
+    }
+  }
+
+  function stopSending() {
+    const text = activeMessageRef.current
+    if (!text) {
+      return
+    }
+    sendScopeRef.current.cancel()
+    activeMessageRef.current = ''
+    setIsSending(false)
+    markUserMessage(text, { failed: true, sending: false })
+    setFailedMessage(text)
+    setErrorMessage('This question was stopped before an answer arrived.')
+  }
+
+  function resizeComposer() {
+    if (composerRef.current) {
+      composerRef.current.style.height = 'auto'
+      composerRef.current.style.height = `${Math.min(composerRef.current.scrollHeight, 180)}px`
     }
   }
 
@@ -263,10 +298,14 @@ function ReportChat({ analysisId, prefillRequest }) {
   }
 
   return (
-    <section className="border-t border-scanora-border-subtle pt-6" aria-labelledby="report-chat-heading">
-      <div className="scanora-chat-panel flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <span className="h-1.5 w-1.5 rounded-full bg-scanora-primary" aria-hidden="true" />
+    <section
+      className="scanora-chat-section"
+      aria-label={isAnalysisBusy ? 'Analysis controls' : undefined}
+      aria-labelledby={isAnalysisBusy ? undefined : 'report-chat-heading'}
+    >
+      {!isAnalysisBusy && (
+      <div className="scanora-chat-panel">
+        <div className="flex items-center">
           <h3
             id="report-chat-heading"
             className="scanora-section-title font-heading font-semibold text-scanora-text"
@@ -274,10 +313,18 @@ function ReportChat({ analysisId, prefillRequest }) {
             Ask Questions About Your Report
           </h3>
         </div>
-
         <p className="scanora-supporting-copy max-w-2xl text-scanora-muted">
           Ask questions regarding any tests or notes visible above. Scanora explains report contents but does not diagnose or recommend treatments.
         </p>
+
+        {attachmentErrors.length > 0 && (
+          <div className="scanora-error" role="alert">
+            <p>Some reports could not be added:</p>
+            <ul className="list-disc pl-5">
+              {attachmentErrors.map((error, index) => <li key={`${error}-${index}`}>{error}</li>)}
+            </ul>
+          </div>
+        )}
 
         {prefillRequest?.finding && (
           <div className="flex flex-col gap-2">
@@ -368,47 +415,95 @@ function ReportChat({ analysisId, prefillRequest }) {
             )}
           </div>
         )}
+      </div>
+      )}
 
-        <label htmlFor="report-chat-input" className="sr-only">
-          Ask a question about your report findings
-        </label>
-        <div className="scanora-chat-controls">
+      <div className={`scanora-composer-wrap${isAnalysisBusy ? ' scanora-composer-wrap-busy' : ''}`}>
+        <div className="scanora-composer">
+          {onAttachFiles && (
+            <>
+              <input
+                ref={attachInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf"
+                multiple
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden="true"
+                onChange={(event) => {
+                  onAttachFiles(event.target.files)
+                  event.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => attachInputRef.current?.click()}
+                disabled={isSending || isAnalysisBusy}
+                className="scanora-attach-button scanora-focus-ring"
+                aria-label="Attach more reports"
+                title="Attach more reports"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+            </>
+          )}
+          <label htmlFor="report-chat-input" className="sr-only">
+            Ask a question about your report findings
+          </label>
           <textarea
             id="report-chat-input"
             ref={composerRef}
             value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              resizeComposer()
+            }}
             onKeyDown={handleKeyDown}
-            placeholder="e.g. What does out-of-range Hematocrit mean?"
-            rows={2}
-            disabled={isSending || !analysisId || isExpired}
-            aria-describedby="report-chat-hint"
-            className="scanora-focus-ring min-h-12 w-full resize-y rounded-lg border border-scanora-border bg-scanora-surface px-4 py-2 text-sm text-scanora-text placeholder:text-scanora-muted disabled:opacity-60"
+            placeholder={isAnalysisBusy ? 'Your reports are being analyzed…' : 'Ask a follow-up question about your report...'}
+            rows={1}
+            disabled={isSending || isAnalysisBusy || !analysisId || isExpired}
+            aria-describedby={isAnalysisBusy ? undefined : 'report-chat-hint'}
+            className="scanora-composer-input scanora-focus-ring"
           />
 
           <button
             type="button"
-            onClick={() => sendMessage()}
-            disabled={isSending || draft.trim() === '' || !analysisId || isExpired}
-            className="scanora-button-primary scanora-focus-ring scanora-chat-send inline-flex shrink-0 cursor-pointer items-center justify-center"
-            aria-label="Send question"
+            onClick={() => {
+              if (isAnalysisBusy) {
+                onStopAnalysis?.()
+              } else if (isSending) {
+                stopSending()
+              } else {
+                sendMessage()
+              }
+            }}
+            disabled={!isAnalysisBusy && !isSending && (draft.trim() === '' || !analysisId || isExpired)}
+            className="scanora-send-button scanora-focus-ring"
+            aria-label={isAnalysisBusy || isSending ? 'Stop' : 'Send question'}
           >
             <svg
-              className="h-5 w-5"
+              className="scanora-send-icon"
               fill="none"
               viewBox="0 0 24 24"
-              strokeWidth="2.5"
+              strokeWidth={isAnalysisBusy || isSending ? '0' : '2.5'}
               stroke="currentColor"
               aria-hidden="true"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              {isAnalysisBusy || isSending ? (
+                <rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+              )}
             </svg>
-            <span className="hidden sm:inline">Ask</span>
           </button>
         </div>
-        <p id="report-chat-hint" className="scanora-file-limit text-scanora-faint">
-          Press Enter to send, Shift + Enter for a new line.
-        </p>
+        {!isAnalysisBusy && (
+          <p id="report-chat-hint" className="scanora-file-limit text-scanora-faint">
+            Press Enter to send, Shift + Enter for a new line.
+          </p>
+        )}
       </div>
     </section>
   )

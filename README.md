@@ -8,18 +8,18 @@ Scanora lets users upload one or multiple medical report images and uses Google 
 
 - Multiple medical report file uploads (up to 10 files and 30 MB total, 10 MB per file)
 - JPG, JPEG, PNG, and PDF support
-- Multiple files per upload
 - Direct Gemini analysis of uploaded images and PDFs
-- Staged analysis progress without percentages
-- Attention-first results with finding values, units, available reference ranges, and relevant context
-- Normal/within-range findings are not shown individually in the primary results view; the former results overview/statistics dashboard is no longer the main UI
-- Finding-specific "Ask about this" prompts and contextual suggested questions
-- Suggested questions fill the composer but are not sent until the user chooses to send
+- Compact analysis status with a Stop action; progress is not presented as a fabricated percentage
+- An "Analysis Complete" view with concise bullets for findings needing attention and a neutral no-findings message
+- Normal results, patient-name metadata, report summaries, and reference-range tables are omitted from the primary results view
 - Frontend attention classification based on available reference ranges and explicit report flags
 - Report chat for explaining findings and answering general educational medical questions
 - Clear distinction between report-supported facts, general education, and possible explanations not confirmed for the user
 - Concise medical safety reminder with every assistant answer
-- Calm Clinical Editorial visual design with responsive layouts, shared 48px-minimum action controls, and a circular 48px mobile chat-send button
+- Responsive desktop, tablet, and mobile layouts with fluid container widths, adaptive spacing, and clamped typography
+- Teal clinical styling with a 16px-padded, vertically centered header
+- Landing-only "Session only" badge and Medical Disclaimer footer; active sessions show "New Scan" without the landing footer
+- Busy composer keeps its attachment icon visible, retains readable placeholder styling, and provides an active Stop control
 - Clear, actionable error messages
 - Session-only report and chat context
 - Start-over reset flow with session recovery through sessionStorage
@@ -44,7 +44,7 @@ Attention-worthy findings
         ↓
 Scanora result screen
         ↓
-Finding-specific questions and report chat
+Attention findings and report chat
         ↓
 Report explanations and general medical education
 ```
@@ -63,6 +63,29 @@ Report explanations and general medical education
 - FastAPI
 - Google GenAI SDK
 - Google Gemini API
+
+## Frontend Architecture
+
+`frontend/src/appState.js` defines the UI state machine used by `App.jsx`. A single reducer state prevents contradictory combinations of separate busy, success, and error flags.
+
+| State | UI |
+| --- | --- |
+| `IDLE` | Upload landing and file selection |
+| `ANALYZING` | Compact progress status, submitted file list, and Stop control |
+| `SUCCESS` | Completed attention findings and report chat |
+| `ERROR` | Upload landing with an actionable error message |
+
+The reducer accepts explicit `START_ANALYSIS`, `FINISH_ANALYSIS`, `STOP_ANALYSIS`, `ANALYSIS_FAILED`, `FILES_CHANGED`, and `RESET_SCAN` events and ignores invalid lifecycle transitions. `runScope.js` pairs analysis and chat requests with abort signals and generation checks so cancelled or stale responses cannot overwrite current UI state. File-selection changes are blocked while analysis is running.
+
+The successful analysis and chat history are session-scoped in `sessionStorage`. The landing-only privacy badge and disclaimer/attribution footer are hidden in active analysis and results views; those views retain the Scanora brand and `New Scan` action. During analysis, the composer keeps its attachment affordance visible but disabled, preserves readable input styling, and leaves Stop available.
+
+## Responsive Design and Input
+
+The interface adapts across desktop, tablet, and mobile viewport sizes. Flexible max-width containers keep the header, upload card, results thread, and composer readable; hero and results headings use fluid `clamp()` sizing. Desktop layouts use 24px page gutters, while the mobile breakpoint (`767px` and below) reduces them to 16px and adjusts the brand, controls, upload card, and composer spacing.
+
+On narrow screens, the composer stays within the viewport and accounts for the device safe area. The report thread scrolls independently above it. The landing view can scroll on mobile and on short-height screens rather than clipping its content. Header actions and composer controls remain in compact horizontal rows and adjust their spacing and sizing for smaller viewports.
+
+File selection supports drag-and-drop on devices that provide it and a browse-from-device control for click or touch input, so drag-and-drop is never the only upload path. The file picker and composer controls also retain keyboard focus styling.
 
 ## Project Structure
 
@@ -87,8 +110,10 @@ Scanora/
 │   │   │   ├── AnalysisResultView.jsx
 │   │   │   └── ReportChat.jsx
 │   │   ├── App.jsx
+│   │   ├── appState.js
 │   │   ├── askAboutFinding.js
 │   │   ├── needsAttention.js
+│   │   ├── runScope.js
 │   │   └── index.css
 │   ├── package.json
 │   └── vite.config.js
@@ -134,7 +159,7 @@ Accepts one or multiple JPG/JPEG/PNG/PDF files (up to 10 MB each, up to 10 files
 
 Gemini returns a structured analysis of information in the uploaded report, including reported values and explicit flags where available.
 
-The backend returns the structured report analysis and preserves each report's source identity. The frontend's existing `needsAttention.js` logic classifies values using the available reference range or explicit report flags. The main results view displays attention-worthy values and report summaries; normal/within-range values are not listed individually, and the former overview dashboard is not the primary results experience.
+The backend returns the structured report analysis and preserves each report's source identity. The frontend's `needsAttention.js` logic classifies values using the available reference range or explicit report flags. The main results view shows only concise bullets for attention-worthy values, including their reported value and whether they are above/below a usable range or explicitly flagged. Normal values and unable-to-evaluate values are not listed in this view; report summaries, patient-name metadata, and reference-range tables are not rendered.
 
 Analysis tasks are retained in process memory for 30 minutes, with up to four active tasks and 128 task records. Gemini analysis results are cached in process memory for one hour, up to 128 entries, using the model, prompt, file content, MIME type, and source IDs as the cache key. Cache entries and task results are transient and contain report-derived data.
 
@@ -298,7 +323,7 @@ cd frontend
 npm test
 ```
 
-Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections, as well as reference-range and qualitative result parsing, attention-only results and the no-attention state, finding-specific chat prefill and suggestions, manual sending, per-answer safety reminders, provenance grouping, analysis/chat concurrency guards, staged progress, chat storage binding, and error-message handling.
+Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections; reference-range and qualitative result parsing; attention-only results and the no-findings state; chat composer behavior, manual sending, and per-answer safety reminders; reducer state transitions; analysis/chat concurrency and cancellation; session storage binding; and actionable error handling.
 
 ### Frontend Lint and Production Build
 
@@ -314,7 +339,7 @@ npm run build
 
 ## Project Status
 
-Scanora is a student-built AI medical report understanding project focused on a simple upload, analysis, and report-chat experience.
+Scanora is a student-built AI medical report understanding project focused on a simple upload, analysis, and report-chat experience. The current frontend test suite passes in full, and the production build succeeds. Unreferenced analysis-stage and report-grouping helpers, their obsolete grouping tests, and an unused hero image have been removed.
 
 ## License
 
