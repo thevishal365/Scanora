@@ -1,10 +1,21 @@
 import { useEffect } from 'react'
 import { attentionNote, isMissingLabel, partitionValues } from '../needsAttention'
+import PageFooter from './PageFooter'
 import ReportChat from './ReportChat'
 
-function AnalysisResultView({ analysis, analysisId, onAttachFiles, attachmentErrors }) {
-  const attentionFindings = (Array.isArray(analysis?.reports) ? analysis.reports : [])
-    .flatMap((report) => partitionValues(report?.important_values).attention)
+function AnalysisResultView({
+  analysis,
+  analysisId,
+  onAttachFiles,
+  attachmentErrors,
+  onOpenDisclaimer,
+}) {
+  const reportValues = (Array.isArray(analysis?.reports) ? analysis.reports : [])
+    .flatMap((report) =>
+      Array.isArray(report?.important_values) ? report.important_values : [],
+    )
+  const { attention: attentionFindings, unable: unableFindings } =
+    partitionValues(reportValues)
 
   useEffect(() => {
     document.getElementById('report-findings-heading')?.focus()
@@ -39,7 +50,14 @@ function AnalysisResultView({ analysis, analysisId, onAttachFiles, attachmentErr
           </ul>
         ) : (
           <p className="scanora-no-findings">
-            No findings needing attention were identified from the visible report ranges.
+            {unableFindings.length > 0
+              ? 'No findings needing attention were identified among the values that could be evaluated.'
+              : 'No findings needing attention were identified from the visible report ranges.'}
+          </p>
+        )}
+        {unableFindings.length > 0 && (
+          <p className="scanora-no-findings">
+            Some report values could not be evaluated from the visible result and reference range information. They are not treated as normal.
           </p>
         )}
       </section>
@@ -50,6 +68,7 @@ function AnalysisResultView({ analysis, analysisId, onAttachFiles, attachmentErr
         onAttachFiles={onAttachFiles}
         attachmentErrors={attachmentErrors}
       />
+      <PageFooter onOpenDisclaimer={onOpenDisclaimer} showAttribution={false} />
     </div>
   )
 }

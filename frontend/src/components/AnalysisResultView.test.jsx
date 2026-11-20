@@ -24,6 +24,7 @@ function renderResults(reports) {
       analysis={{ overall_summary: 'Long overall summary', reports }}
       analysisId="analysis-id"
       onStartOver={() => {}}
+      onOpenDisclaimer={() => {}}
     />,
   )
 }
@@ -85,6 +86,26 @@ describe('attention-focused results', () => {
     expect(screen.getByRole('textbox', { name: /ask a question about your report/i })).toBeTruthy()
     expect(screen.queryByText('Repeated key observation')).toBeNull()
     expect(screen.queryByText('Long report explanation')).toBeNull()
+  })
+
+  it('states when report values could not be evaluated', () => {
+    renderResults([
+      report('source-1', 'CBC', [
+        value('Hemoglobin', '14', 'g/dL', '12 - 16'),
+        value('Platelets', '150', '10^3/uL', 'Not shown'),
+      ]),
+    ])
+
+    expect(
+      screen.getByText(
+        'No findings needing attention were identified among the values that could be evaluated.',
+      ),
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        'Some report values could not be evaluated from the visible result and reference range information. They are not treated as normal.',
+      ),
+    ).toBeTruthy()
   })
 
   it('omits patient and report names across findings from multiple reports', () => {

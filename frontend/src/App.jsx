@@ -3,8 +3,8 @@ import AnalysisResultView from './components/AnalysisResultView'
 import AnalysisProgress from './components/AnalysisProgress'
 import ImagePreviewList from './components/ImagePreviewList'
 import PageFooter from './components/PageFooter'
-import { CHAT_STORAGE_KEY, clearStoredChat } from './components/ReportChat'
 import ReportChat from './components/ReportChat'
+import { CHAT_STORAGE_KEY, clearStoredChat } from './chatStorage'
 import ScanoraBrand from './components/ScanoraBrand'
 import UploadArea from './components/UploadArea'
 import { messageFromResponse } from './errors'
@@ -144,6 +144,11 @@ function App() {
         sizeLabel: formatFileSize(file.size),
       }))
       setSelectedItems((current) => [...current, ...newItems])
+      if (appState === APP_STATES.SUCCESS) {
+        clearStoredSession()
+        setAnalysis(null)
+        setAnalysisId(null)
+      }
       dispatch({ type: APP_ACTIONS.FILES_CHANGED })
     }
 
@@ -407,6 +412,7 @@ function App() {
                 analysisId={analysisId}
                 onAttachFiles={addFiles}
                 attachmentErrors={fileErrors}
+                onOpenDisclaimer={() => setShowDisclaimerModal(true)}
               />
             </>
           )}
@@ -416,7 +422,7 @@ function App() {
           <div className="scanora-hero">
             <p className="scanora-hero-badge">
               <span className="scanora-hero-indicator" aria-hidden="true" />
-              Clinical Document Assistant
+              AI Report Analyzer
             </p>
             <h1 id="upload-heading" tabIndex={-1} className="scanora-page-title">
               Understand Your Reports, <span className="scanora-accent-italic">Simply.</span>

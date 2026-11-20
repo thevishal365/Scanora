@@ -197,9 +197,13 @@ def validate_analysis_payload(
             source_id is None
             or not source_id.strip()
             or report_name is None
+            or not report_name.strip()
             or summary is None
+            or not summary.strip()
             or simple_explanation is None
+            or not simple_explanation.strip()
             or key_findings is None
+            or any(not finding.strip() for finding in key_findings)
             or not isinstance(important_values, list)
         ):
             raise GeminiServiceError("invalid_response")
@@ -216,7 +220,7 @@ def validate_analysis_payload(
             # pass as misleading valid values.
             unit = _as_optional_text(item.get("unit"))
             reference_range = _as_optional_text(item.get("reference_range"))
-            if None in (name, value):
+            if name is None or not name.strip() or value is None or not value.strip():
                 raise GeminiServiceError("invalid_response")
             cleaned_values.append(
                 {

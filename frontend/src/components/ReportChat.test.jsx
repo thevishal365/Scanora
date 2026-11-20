@@ -104,9 +104,27 @@ describe('chat send concurrency', () => {
     await screen.findByRole('alert')
 
     fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+    const retryPayload = JSON.parse(fetch.mock.calls[1][1].body)
+    expect(retryPayload.message).toBe('Retry me')
+    expect(retryPayload.messages).toEqual([])
     pendingRequests[1].resolve(answerResponse('Recovered answer'))
     await screen.findByText('Recovered answer')
     expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('treats a successful response with a blank answer as a retryable failure', async () => {
+    render(<ReportChat analysisId="a1" />)
+    await sendMessage('Try again after malformed response')
+    pendingRequests[0].resolve(answerResponse('  '))
+
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy()
+    expect(screen.queryByText('  ')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+    expect(JSON.parse(fetch.mock.calls[1][1].body).messages).toEqual([])
+    pendingRequests[1].resolve(answerResponse('Valid answer'))
+    await screen.findByText('Valid answer')
   })
 
   it('stops an in-flight chat request and keeps the question available to retry', async () => {
@@ -197,5 +215,10 @@ describe('composer prefill, expiry, and hints', () => {
     render(<ReportChat analysisId="a1" />)
     expect(screen.getByText(/press enter to send/i)).toBeTruthy()
     expect(composer().getAttribute('aria-describedby')).toBe('report-chat-hint')
+  })
+
+  it('limits the composer to the backend message length', () => {
+    render(<ReportChat analysisId="a1" />)
+    expect(composer().maxLength).toBe(2000)
   })
 })

@@ -96,6 +96,27 @@ def test_null_value_still_fails():
         validate_analysis_payload(_payload(value=None))
 
 
+@pytest.mark.parametrize("field", ["report_name", "summary", "simple_explanation"])
+def test_whitespace_only_report_fields_fail(field):
+    payload = _payload()
+    payload["reports"][0][field] = " \t "
+    with pytest.raises(GeminiServiceError):
+        validate_analysis_payload(payload)
+
+
+@pytest.mark.parametrize("field", ["name", "value"])
+def test_whitespace_only_important_value_fields_fail(field):
+    with pytest.raises(GeminiServiceError):
+        validate_analysis_payload(_payload(**{field: " \t "}))
+
+
+def test_whitespace_only_key_finding_fails():
+    payload = _payload()
+    payload["reports"][0]["key_findings"] = [" \t "]
+    with pytest.raises(GeminiServiceError):
+        validate_analysis_payload(payload)
+
+
 def test_non_dict_value_entry_still_fails():
     payload = _payload()
     payload["reports"][0]["important_values"] = ["not-a-dict"]

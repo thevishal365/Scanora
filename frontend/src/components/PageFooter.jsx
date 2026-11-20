@@ -1,4 +1,4 @@
-function PageFooter({ onOpenDisclaimer }) {
+function PageFooter({ onOpenDisclaimer, showAttribution = true }) {
   return (
     <footer className="scanora-footer">
       <button
@@ -10,20 +10,22 @@ function PageFooter({ onOpenDisclaimer }) {
       >
         Medical Disclaimer
       </button>
-      <span className="scanora-footer-attribution">
-        <span className="scanora-footer-separator" aria-hidden="true">·</span>
-        <span className="scanora-footer-author">
-          Designed by
-          <a
-            href="https://x.com/thevishal365"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="scanora-focus-ring"
-          >
-            Vishal
-          </a>
+      {showAttribution && (
+        <span className="scanora-footer-attribution">
+          <span className="scanora-footer-separator" aria-hidden="true">·</span>
+          <span className="scanora-footer-author">
+            Designed by
+            <a
+              href="https://x.com/thevishal365"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="scanora-focus-ring"
+            >
+              Vishal
+            </a>
+          </span>
         </span>
-      </span>
+      )}
     </footer>
   )
 }

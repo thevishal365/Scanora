@@ -150,7 +150,7 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 --color-scanora-attention-soft:  #FFF4E7; /* Amber background fill */
 --color-scanora-attention-border:#F3D5B5; /* Amber hairline */
 
---color-scanora-success:         #2F725B; /* Sage green for verified normal / evaluated states */
+--color-scanora-success:         #2F725B; /* Reserved for positive interface status, never a medical conclusion */
 --color-scanora-success-soft:    #ECF7F1; /* Success background fill */
 --color-scanora-success-border:  #C4E6D6; /* Success hairline */
 
@@ -194,14 +194,14 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 ### Shared Reading Frame
 * **Container Max-Width**: `1152px` (`72rem`) across the header, upload/results content, and footer.
 * **Upload Layout**: One column on mobile; a balanced editorial introduction and document workspace on wide screens.
-* **Results Layout**: A single left-aligned reading column capped at `1024px`, with bounded text measure and a horizontally scrollable findings table on small screens.
+* **Results Layout**: A single left-aligned reading column capped at `1024px`; concise attention findings use a text list rather than a report table.
 * **Rhythm**:
   1. **Brand Bar**: Minimalist logo lockup + session privacy pill.
   2. **Editorial Introduction**: Page title and context lead paragraph.
   3. **Primary Workspace**:
      - *Phase 1 (Upload)*: Dropzone + Preview List + Action Button + Privacy Note.
-     - *Phase 2 (Results)*: Overview Summary + "Needs Attention" Findings List + "No Issues" / Evaluated State + Supporting Findings + Interactive Chat + Reset Action.
-  4. **Trust Anchors**: Persistent Medical Disclaimer + Footnote.
+     - *Phase 2 (Results)*: "Analysis Complete" + attention findings or a neutral no-findings message + an uncertainty note when values could not be evaluated + Interactive Chat.
+  4. **Trust Anchors**: Landing-only session and attribution details, plus an available Medical Disclaimer control on the upload and completed-results views.
 
 ---
 
@@ -241,22 +241,14 @@ Colors are layered systematically to direct focus, establish certainty boundarie
 * **Selected File Previews**:
   * Surface card for each selected file displaying thumbnail, truncated filename, formatted size (`1.4 MB`), and an accessible 44px remove button.
 
-### 7.4. Finding Cards ("Needs Attention")
-* Framed in `1px solid --color-scanora-border` on `--color-scanora-surface`.
-* Top bar features an amber badge:
-  * Badge fill: `--color-scanora-attention-soft`, text: `--color-scanora-attention`, border: `--color-scanora-attention-border`.
-  * Explicit text label: *"Needs Attention"*.
-* **Data Grid Layout**:
-  * **Test / Metric Name**: Noto Sans 16px SemiBold.
-  * **Observed Value**: Noto Sans 16px SemiBold in `--color-scanora-ink` (or `--color-scanora-attention` when out of range).
-  * **Reference Range**: 13px Noto Sans Medium in `--color-scanora-ink-muted` (e.g., *"Normal reference: 4.0 - 11.0 ×10^3/µL"*).
-  * **Plain-Language Explanation**: 15px Noto Sans Regular in `--color-scanora-ink` explaining *why* it is flagged (e.g., "The report notes this value is slightly above the laboratory reference interval.").
+### 7.4. Attention Findings
+* Results render concise text bullets for values classified as needing attention from visible reference ranges or explicit report flags.
+* Each bullet includes the test name, reported value and unit when available, and a short reason. The main results view does not show patient metadata, report summaries, or reference-range tables.
+* Use explicit text rather than color alone to communicate why a value is included.
 
-### 7.5. "No Issues Identified" State
-* Renders when no values meet the attention criteria.
-* Surface fill: `--color-scanora-success-soft`, border: `1px solid --color-scanora-success-border`.
-* Text: `--color-scanora-success` heading: *"No issues identified in the evaluated data"*.
-* Scoped context paragraph: Clearly explains that the evaluated test values were within their respective visible reference ranges, without claiming overall medical clearance.
+### 7.5. No-Findings and Uncertainty States
+* When no values need attention, use neutral copy scoped to the visible information; do not imply that all results are normal or that the user is medically clear.
+* When some values cannot be evaluated from the visible result and reference-range information, disclose that limitation and state that those values are not treated as normal.
 
 ### 7.6. Interactive Report Chat
 * Framed container at the bottom of results phase.
@@ -264,7 +256,7 @@ Colors are layered systematically to direct focus, establish certainty boundarie
   * *User message*: Right-aligned or distinct fill using `--color-scanora-brand-soft` with deep slate text.
   * *Assistant message*: Left-aligned on `--color-scanora-surface-muted` with `1px solid --color-scanora-border`.
 * **Composer**:
-  * Textarea with comfortable vertical padding, clear placeholder ("Ask a question about your report findings...").
+  * Textarea with comfortable vertical padding and the placeholder "Ask a follow-up question about your report...".
   * Focus: `3px solid --color-scanora-brand` ring.
   * Key actions: `Enter` sends (when non-empty), `Shift+Enter` inserts newline.
   * Send button: Teal icon/button disabled when input is empty or request is pending.
@@ -283,9 +275,9 @@ Scanora is an informational aid, not a diagnostic medical device or clinical aut
 3. **Attribute Evidence Directly to the Document**:
    * Copy must frame facts around the visible artifact: *"The report indicates..."*, *"Visible reference range is..."*, *"The printed text notes..."*.
 4. **Display Limitations & Uncertainty**:
-   * If a report image is partially blurry, truncated, or missing reference ranges, the UI must display this limitation openly in a neutral callout card rather than hiding uncertainty.
-5. **Persistent Medical Disclaimer**:
-   * The disclaimer stating that Scanora is for educational purposes and cannot replace professional clinical consultation must be visibly anchored on both the upload and results screens.
+   * When the reported value or reference-range information is unavailable or unusable, results disclose that the value could not be evaluated and do not treat it as normal.
+5. **Medical Disclaimer**:
+   * Provide a Medical Disclaimer control on the upload and completed-results screens; opening it explains the educational scope and the need to consult a qualified professional.
 
 ---
 
@@ -295,7 +287,7 @@ Scanora is an informational aid, not a diagnostic medical device or clinical aut
   * Full tab stop cycle across dropzone file trigger, remove buttons, analyze actions, chat input, send button, and reset action.
   * All interactive controls feature an unmissable focus ring: `outline: 3px solid var(--color-scanora-primary); outline-offset: 2px;`.
 * **Screen Readers**:
-  * Semantic heading tree (`h1` for main title, `h2` for primary phase sections, `h3` for individual metrics/findings).
+  * Semantic heading tree (`h1` for the landing title, `h2` for completed analysis, `h3` for the report-chat section); attention findings are list items.
   * Error banners utilize `role="alert"`.
   * Loading and chat responses utilize `role="status"` and `aria-live="polite"`.
 * **Touch Targets**:
@@ -318,7 +310,7 @@ Scanora is an informational aid, not a diagnostic medical device or clinical aut
   * Header, workspace, results, and footer share a `1152px` max-width frame.
   * Upload changes to a two-column introduction/workspace grid at `1024px`.
   * Major sections use 32px/48px separation on the 8px spacing rhythm.
-  * Tabular metrics layout displays value and reference range side-by-side.
+  * Results remain a single-column reading view with concise attention-finding bullets.
 
 ---
 

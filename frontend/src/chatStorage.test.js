@@ -3,7 +3,7 @@ import {
   CHAT_STORAGE_KEY,
   chatStorageKey,
   clearStoredChat,
-} from './components/ReportChat'
+} from './chatStorage'
 
 beforeEach(() => {
   sessionStorage.clear()

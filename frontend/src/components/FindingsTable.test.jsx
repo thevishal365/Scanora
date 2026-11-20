@@ -40,7 +40,12 @@ afterEach(() => {
 describe('attention findings list', () => {
   it('renders every attention value as a concise bullet without reference columns', () => {
     render(
-      <AnalysisResultView analysis={analysis} analysisId="tid" onStartOver={() => {}} />,
+      <AnalysisResultView
+        analysis={analysis}
+        analysisId="tid"
+        onStartOver={() => {}}
+        onOpenDisclaimer={() => {}}
+      />,
     )
 
     const findings = screen.getByRole('list', { name: 'Key findings needing attention' })

@@ -6,27 +6,7 @@ import {
   buildFindingQuestion,
   findingQuestionSuggestions,
 } from '../askAboutFinding'
-
-export const CHAT_STORAGE_KEY = 'scanora:chat'
-
-export function chatStorageKey(analysisId) {
-  if (analysisId && typeof analysisId === 'string') {
-    return `${CHAT_STORAGE_KEY}:${analysisId}`
-  }
-  return CHAT_STORAGE_KEY
-}
-
-export function clearStoredChat(analysisId) {
-  try {
-    // Legacy un-namespaced key (pre-provenance) plus the bound key.
-    sessionStorage.removeItem(CHAT_STORAGE_KEY)
-    if (analysisId && typeof analysisId === 'string') {
-      sessionStorage.removeItem(chatStorageKey(analysisId))
-    }
-  } catch {
-    // Ignore storage errors during reset.
-  }
-}
+import { chatStorageKey } from '../chatStorage'
 
 function loadStoredMessages(storageKey) {
   try {
@@ -156,10 +136,15 @@ function ReportChat({
       return
     }
 
-    const history = messages.map((item) => ({
-      role: item.role,
-      content: item.text,
-    }))
+    const history = messages
+      .filter(
+        (item) =>
+          !(item.role === 'user' && item.text === text && item.failed),
+      )
+      .map((item) => ({
+        role: item.role,
+        content: item.text,
+      }))
 
     const run = sendScopeRef.current.begin()
     const isRunCurrent = () => sendScopeRef.current.isCurrent(run.id)
@@ -463,6 +448,7 @@ function ReportChat({
             onKeyDown={handleKeyDown}
             placeholder={isAnalysisBusy ? 'Your reports are being analyzed…' : 'Ask a follow-up question about your report...'}
             rows={1}
+            maxLength={2000}
             disabled={isSending || isAnalysisBusy || !analysisId || isExpired}
             aria-describedby={isAnalysisBusy ? undefined : 'report-chat-hint'}
             className="scanora-composer-input scanora-focus-ring"

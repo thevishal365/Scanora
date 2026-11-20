@@ -93,6 +93,37 @@ def test_unknown_analysis_task_returns_404(client):
     assert response.status_code == 404
 
 
+def test_prune_analysis_tasks_expires_records_at_ttl_boundary():
+    now = 1000.0
+    main_module._ANALYSIS_TASKS.update(
+        {
+            "stale-processing": {
+                "status": "processing",
+                "updated_at": now - main_module.ANALYSIS_TASK_TTL_SECONDS,
+            },
+            "stale-completed": {
+                "status": "completed",
+                "updated_at": now - main_module.ANALYSIS_TASK_TTL_SECONDS,
+            },
+            "fresh-processing": {
+                "status": "processing",
+                "updated_at": now - 1,
+            },
+            "fresh-completed": {
+                "status": "completed",
+                "updated_at": now - 1,
+            },
+        }
+    )
+
+    main_module._prune_analysis_tasks(now)
+
+    assert "stale-processing" not in main_module._ANALYSIS_TASKS
+    assert "stale-completed" not in main_module._ANALYSIS_TASKS
+    assert "fresh-processing" in main_module._ANALYSIS_TASKS
+    assert "fresh-completed" in main_module._ANALYSIS_TASKS
+
+
 def test_valid_pdf(client, patched_analyze, poll_analysis):
     response = client.post(
         "/api/analyze",

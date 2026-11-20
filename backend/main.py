@@ -159,8 +159,7 @@ def _prune_analysis_tasks(now: float) -> None:
     expired = [
         task_id
         for task_id, task in _ANALYSIS_TASKS.items()
-        if task["status"] != "processing"
-        and now - task["updated_at"] >= ANALYSIS_TASK_TTL_SECONDS
+        if now - task["updated_at"] >= ANALYSIS_TASK_TTL_SECONDS
     ]
     for task_id in expired:
         del _ANALYSIS_TASKS[task_id]

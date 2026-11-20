@@ -110,7 +110,7 @@ describe('upload landing page', () => {
 
     expect(screen.getByRole('link', { name: 'Scanora home' })).toBeTruthy()
     expect(screen.getByText('Session only')).toBeTruthy()
-    expect(screen.getByText('Clinical Document Assistant')).toBeTruthy()
+    expect(screen.getByText('AI Report Analyzer')).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Understand Your Reports, Simply.' })).toBeTruthy()
     expect(screen.getByText('Simply.').className).toContain('scanora-accent-italic')
     expect(
@@ -179,6 +179,21 @@ describe('medical disclaimer modal', () => {
     const reopenedDialog = screen.getByRole('dialog')
     fireEvent.click(reopenedDialog)
     expect(reopenedDialog.open).toBe(false)
+  })
+
+  it('keeps the disclaimer available from completed results', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'cbc.jpg')
+    clickAnalyze()
+    pendingRequests[0].resolve(analysisResponse('id-disclaimer', 'Summary'))
+    await screen.findByRole('heading', { name: 'Analysis Complete' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Medical Disclaimer' }))
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.open).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(dialog.open).toBe(false)
   })
 })
 
@@ -273,6 +288,60 @@ describe('analysis concurrency guards', () => {
     await screen.findByText(/Finding id-b:/)
     expect(screen.queryByText('Finding id-a')).toBeNull()
   })
+
+  it('clears the completed analysis when more files are attached', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'first.jpg')
+    clickAnalyze()
+    pendingRequests[0].resolve(analysisResponse('id-attach', 'Original Summary'))
+    await screen.findByText(/Finding id-attach:/)
+
+    sessionStorage.setItem(
+      'scanora:chat:id-attach',
+      JSON.stringify([{ role: 'user', text: 'Old question' }]),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Attach more reports' }))
+    const fileInputs = container.querySelectorAll('input[type="file"]')
+    fireEvent.change(fileInputs[fileInputs.length - 1], {
+      target: { files: [makeJpg('second.jpg')] },
+    })
+
+    await screen.findByText('second.jpg')
+    expect(screen.queryByRole('heading', { name: 'Analysis Complete' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'New Scan' })).toBeNull()
+    expect(sessionStorage.getItem('scanora:session')).toBeNull()
+    expect(sessionStorage.getItem('scanora:chat:id-attach')).toBeNull()
+    expect(screen.getByText(/Selected files \(2\)/)).toBeTruthy()
+  })
+
+  it('keeps completed results and session when an invalid attachment is rejected', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'first.jpg')
+    clickAnalyze()
+    pendingRequests[0].resolve(analysisResponse('id-invalid-attach', 'Original Summary'))
+    await screen.findByText(/Finding id-invalid-attach:/)
+    const storedSession = sessionStorage.getItem('scanora:session')
+    const storedChat = JSON.stringify([{ role: 'user', text: 'Keep this history' }])
+    sessionStorage.setItem('scanora:chat:id-invalid-attach', storedChat)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach more reports' }))
+    const fileInputs = container.querySelectorAll('input[type="file"]')
+    fireEvent.change(fileInputs[fileInputs.length - 1], {
+      target: {
+        files: [
+          new File(['not a report'], 'notes.docx', {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          }),
+        ],
+      },
+    })
+
+    await screen.findByText(/Word documents are not supported/)
+    expect(screen.getByRole('heading', { name: 'Analysis Complete' })).toBeTruthy()
+    expect(screen.getByText(/Finding id-invalid-attach:/)).toBeTruthy()
+    expect(sessionStorage.getItem('scanora:session')).toBe(storedSession)
+    expect(sessionStorage.getItem('scanora:chat:id-invalid-attach')).toBe(storedChat)
+  })
 })
 
 describe('analysis loading state', () => {
@@ -318,6 +387,26 @@ describe('analysis loading state', () => {
     ).toBeTruthy()
   })
 
+  it('shows a status endpoint error and ends loading', async () => {
+    const { container } = render(<App />)
+    await addFile(container, 'cbc.jpg')
+    const submission = analysisResponse('id-expired-task', 'Unused Summary')
+    taskStatusResponses.set('id-expired-task', [
+      {
+        ok: false,
+        status: 404,
+        json: async () => ({ detail: 'Task not found' }),
+      },
+    ])
+
+    clickAnalyze()
+    pendingRequests[0].resolve(submission)
+
+    expect(await screen.findByText('Task not found')).toBeTruthy()
+    expect(screen.queryByRole('status')).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Analysis Complete' })).toBeNull()
+  })
+
   it('shows staged loading while the analysis runs', async () => {
     const { container } = render(<App />)
     await addFile(container, 'cbc.jpg')
@@ -339,7 +428,7 @@ describe('analysis loading state', () => {
 
     pendingRequests[0].resolve(analysisResponse('id-1', 'Summary One'))
     await screen.findByRole('heading', { name: 'Analysis Complete' })
-    expect(screen.queryByRole('button', { name: 'Medical Disclaimer' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Medical Disclaimer' })).toBeTruthy()
     expect(screen.queryByText('Designed by')).toBeNull()
     expect(screen.queryByText('Not a substitute for professional medical evaluation')).toBeNull()
   })

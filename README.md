@@ -11,6 +11,7 @@ Scanora lets users upload one or multiple medical report images and uses Google 
 - Direct Gemini analysis of uploaded images and PDFs
 - Compact analysis status with a Stop action; progress is not presented as a fabricated percentage
 - An "Analysis Complete" view with concise bullets for findings needing attention and a neutral no-findings message
+- Explicit disclosure when some values cannot be evaluated; no-findings copy is scoped to evaluable values
 - Normal results, patient-name metadata, report summaries, and reference-range tables are omitted from the primary results view
 - Frontend attention classification based on available reference ranges and explicit report flags
 - Report chat for explaining findings and answering general educational medical questions
@@ -18,7 +19,7 @@ Scanora lets users upload one or multiple medical report images and uses Google 
 - Concise medical safety reminder with every assistant answer
 - Responsive desktop, tablet, and mobile layouts with fluid container widths, adaptive spacing, and clamped typography
 - Teal clinical styling with a 16px-padded, vertically centered header
-- Landing-only "Session only" badge and Medical Disclaimer footer; active sessions show "New Scan" without the landing footer
+- Landing-only "Session only" badge and attribution; completed results retain a Medical Disclaimer control, while active sessions show "New Scan" without the landing footer
 - Busy composer keeps its attachment icon visible, retains readable placeholder styling, and provides an active Stop control
 - Clear, actionable error messages
 - Session-only report and chat context
@@ -77,7 +78,7 @@ Report explanations and general medical education
 
 The reducer accepts explicit `START_ANALYSIS`, `FINISH_ANALYSIS`, `STOP_ANALYSIS`, `ANALYSIS_FAILED`, `FILES_CHANGED`, and `RESET_SCAN` events and ignores invalid lifecycle transitions. `runScope.js` pairs analysis and chat requests with abort signals and generation checks so cancelled or stale responses cannot overwrite current UI state. File-selection changes are blocked while analysis is running.
 
-The successful analysis and chat history are session-scoped in `sessionStorage`. The landing-only privacy badge and disclaimer/attribution footer are hidden in active analysis and results views; those views retain the Scanora brand and `New Scan` action. During analysis, the composer keeps its attachment affordance visible but disabled, preserves readable input styling, and leaves Stop available.
+The successful analysis and chat history are session-scoped in `sessionStorage`. The privacy badge and attribution are landing-only. A Medical Disclaimer control appears on the landing and completed results views; active sessions retain the Scanora brand and `New Scan` action without the landing footer. During analysis, the composer keeps its attachment affordance visible but disabled, preserves readable input styling, and leaves Stop available.
 
 ## Responsive Design and Input
 
@@ -91,6 +92,7 @@ File selection supports drag-and-drop on devices that provide it and a browse-fr
 
 ```text
 Scanora/
+├── DESIGN.md
 ├── backend/
 │   ├── services/
 │   │   ├── gemini_service.py
@@ -100,7 +102,6 @@ Scanora/
 │   ├── report_upload.py
 │   ├── requirements.txt
 │   ├── tests/
-│   └── .venv/
 │
 ├── frontend/
 │   ├── public/
@@ -112,6 +113,7 @@ Scanora/
 │   │   ├── App.jsx
 │   │   ├── appState.js
 │   │   ├── askAboutFinding.js
+│   │   ├── chatStorage.js
 │   │   ├── needsAttention.js
 │   │   ├── runScope.js
 │   │   └── index.css
@@ -167,7 +169,7 @@ The task store, task workers, rate limits, and analysis cache are process-local.
 
 Expensive endpoints are rate-limited per client IP (10 analysis submissions and 30 chat messages per 60 seconds); excess requests receive HTTP 429.
 
-Transient Gemini errors are retried at most once, so a single analysis or chat action makes at most two Gemini requests. Provider HTTP 503 / `UNAVAILABLE` errors are reported as temporary service unavailability. Quota/rate-limit, authentication, malformed-request, and invalid-model-response errors have distinct handling.
+Transient Gemini errors are retried at most three times, so a single analysis or chat action makes at most four Gemini requests. Provider HTTP 503 / `UNAVAILABLE` errors are reported as temporary service unavailability. Quota/rate-limit, authentication, malformed-request, and invalid-model-response errors have distinct handling.
 
 ### Report Chat
 
@@ -249,7 +251,7 @@ The AI should not:
 - Node.js
 - npm
 - Python
-- A Gemini API key
+- `GEMINI_API_KEY` and `GEMINI_MODEL` (see `.env.example`)
 
 ### Install Frontend Dependencies
 
@@ -323,7 +325,7 @@ cd frontend
 npm test
 ```
 
-Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections; reference-range and qualitative result parsing; attention-only results and the no-findings state; chat composer behavior, manual sending, and per-answer safety reminders; reducer state transitions; analysis/chat concurrency and cancellation; session storage binding; and actionable error handling.
+Frontend tests use Vitest and cover file-selection validation, including format acceptance, 10 MB exact-boundary checks, magic-byte mismatch rejection, and mixed-format multi-file selections; reference-range and qualitative result parsing; attention-only results, unevaluable values, and the no-findings state; post-success file attachment and analysis polling errors; chat composer behavior, retry handling, and per-answer safety reminders; reducer state transitions; analysis/chat concurrency and cancellation; session storage binding; and actionable error handling.
 
 ### Frontend Lint and Production Build
 
@@ -339,7 +341,7 @@ npm run build
 
 ## Project Status
 
-Scanora is a student-built AI medical report understanding project focused on a simple upload, analysis, and report-chat experience. The current frontend test suite passes in full, and the production build succeeds. Unreferenced analysis-stage and report-grouping helpers, their obsolete grouping tests, and an unused hero image have been removed.
+Scanora is a student-built AI medical report understanding project focused on a simple upload, analysis, and report-chat experience. Its backend includes an environment-gated live Gemini integration test, so that test depends on provider availability. Unreferenced analysis-stage and report-grouping helpers, their obsolete grouping tests, and an unused hero image have been removed.
 
 ## License
 
